@@ -5,11 +5,14 @@ project(box2d-lite LANGUAGES CXX)
 add_subdirectory(src)
 
 option(BOX2D_BUILD_SAMPLES "Build the box2d-lite sample program" ON)
+option(GLFW_BUILD_X11 "X11" 0)
+option(GLFW_BUILD_WAYLAND "WAYLAND" 0)
+option(GLFW_BUILD_KMSDRM "RPI KMSDRM" 1)
 
 if (BOX2D_BUILD_SAMPLES)
 
 	add_subdirectory(extern/glad)
-	add_subdirectory(extern/glfw)
+	add_subdirectory(extern/glfw-plus-kmsdrm)
 	add_subdirectory(extern/imgui)
 	add_subdirectory(samples)
 

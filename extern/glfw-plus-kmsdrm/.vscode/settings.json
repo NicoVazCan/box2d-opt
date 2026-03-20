@@ -1,0 +1,12 @@
+{
+  "terminal.integrated.profiles.windows": {
+      "w64devkit": {
+          "path": "C:/w64devkit/bin/sh.exe",
+          "env": {
+              "PATH": "C:\\w64devkit\\bin;C:\\go\\bin"
+          },
+          "cwd": "${workspaceFolder}"
+      }
+  },
+  "terminal.integrated.defaultProfile.windows": "w64devkit"
+}
