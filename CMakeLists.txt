@@ -5,9 +5,17 @@ project(box2d-lite LANGUAGES CXX)
 add_subdirectory(src)
 
 option(BOX2D_BUILD_SAMPLES "Build the box2d-lite sample program" ON)
-option(GLFW_BUILD_X11 "X11" 0)
-option(GLFW_BUILD_WAYLAND "WAYLAND" 0)
-option(GLFW_BUILD_KMSDRM "RPI KMSDRM" 1)
+
+if (RPI)
+	option(GLFW_BUILD_X11 "X11" 0)
+	option(GLFW_BUILD_WAYLAND "WAYLAND" 0)
+	option(GLFW_BUILD_KMSDRM "RPI KMSDRM" 1)
+endif()
+
+if (PROFILING)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -g -fno-omit-frame-pointer")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS}")
+endif()
 
 if (BOX2D_BUILD_SAMPLES)
 

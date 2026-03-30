@@ -28,7 +28,7 @@ namespace
 {
 	GLFWwindow* mainWindow = NULL;
 
-	Body bodies[200];
+	Body bodies[2000];
 	Joint joints[100];
 	
 	Body* bomb = NULL;
@@ -495,7 +495,29 @@ static void Demo9(Body* b, Joint* j)
 	}
 }
 
-void (*demos[])(Body* b, Joint* j) = {Demo1, Demo2, Demo3, Demo4, Demo5, Demo6, Demo7, Demo8, Demo9};
+static void Demo10(Body* b, Joint* j)
+{
+	b->Set(Vec2(100.0f, 20.0f), FLT_MAX);
+	b->friction = 0.2f;
+	b->position.Set(0.0f, -0.5f * b->width.y);
+	b->rotation = 0.0f;
+	world.Add(b);
+	++b; ++numBodies;
+
+	for (int i = 0; i < 20; ++i)
+	{
+		for (int j = 0; j < 20; ++j)
+		{
+			b->Set(Vec2(0.4f, 0.4f), 10.0f);
+			b->friction = 0.2f;
+			b->position.Set(0.205f + 0.425f * j, 0.205f + 0.425f * i);
+			world.Add(b);
+			++b; ++numBodies;
+		}
+	}
+}
+
+void (*demos[])(Body* b, Joint* j) = {Demo10, Demo2, Demo3, Demo4, Demo5, Demo6, Demo7, Demo8, Demo9, };
 const char* demoStrings[] = {
 	"Demo 1: A Single Box",
 	"Demo 2: Simple Pendulum",
@@ -647,8 +669,34 @@ int main(int, char**)
 
 	InitDemo(0);
 
+	double lastFrame = glfwGetTime();
+
+	double timeAccumulator = 0.0;
+	int frameCounter = 0;
+	double wrldStpDeltaAccum = 0.0;
+
+	int averageFPS = 0;
+    double meanWrldStpDelta = 0.0;
+
 	while (!glfwWindowShouldClose(mainWindow))
 	{
+		double currentFrame = glfwGetTime();
+		double deltaTime = currentFrame - lastFrame;
+		lastFrame = currentFrame;
+
+		timeAccumulator += deltaTime;
+    	frameCounter++;
+
+    	if (timeAccumulator >= 1.0)
+	    {
+	        averageFPS = frameCounter / timeAccumulator;
+	        meanWrldStpDelta = 100 * wrldStpDeltaAccum / frameCounter;
+
+	        frameCounter = 0;
+	        timeAccumulator = 0.0;
+	        wrldStpDeltaAccum = 0.0;
+	    }
+
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		ImGui_ImplOpenGL2_NewFrame();
@@ -673,10 +721,17 @@ int main(int, char**)
 		sprintf(buffer, "(W)arm Starting %s", World::warmStarting ? "ON" : "OFF");
 		DrawText(5, 125, buffer);
 
+		sprintf(buffer, "FPS: %2d", averageFPS);
+		DrawText(5, 155, buffer);
+		sprintf(buffer, "World Step Delta Time: %0.2f ms", meanWrldStpDelta);
+		DrawText(5, 185, buffer);
+
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
 
+		currentFrame = glfwGetTime();
 		world.Step(timeStep);
+		wrldStpDeltaAccum += glfwGetTime() - currentFrame;
 
 		for (int i = 0; i < numBodies; ++i)
 			DrawBody(bodies + i);
