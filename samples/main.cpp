@@ -723,6 +723,7 @@ int main(int, char**)
 
 		sprintf(buffer, "FPS: %2d", averageFPS);
 		DrawText(5, 155, buffer);
+		
 		sprintf(buffer, "World Step Delta Time: %0.2f ms", meanWrldStpDelta);
 		DrawText(5, 185, buffer);
 
@@ -743,13 +744,17 @@ int main(int, char**)
 		glColor3f(1.0f, 0.0f, 0.0f);
 		glBegin(GL_POINTS);
 		std::map<ArbiterKey, Arbiter>::const_iterator iter;
-		for (iter = world.arbiters.begin(); iter != world.arbiters.end(); ++iter)
+		for (int i = 0; i < (int)world.bodies.size(); ++i)
 		{
-			const Arbiter& arbiter = iter->second;
-			for (int i = 0; i < arbiter.numContacts; ++i)
+			Body* bi = world.bodies[i];
+			for (iter = bi->arbiters.begin(); iter != bi->arbiters.end(); ++iter)
 			{
-				Vec2 p = arbiter.contacts[i].position;
-				glVertex2f(p.x, p.y);
+				const Arbiter& arbiter = iter->second;
+				for (int i = 0; i < arbiter.numContacts; ++i)
+				{
+					Vec2 p = arbiter.contacts[i].position;
+					glVertex2f(p.x, p.y);
+				}
 			}
 		}
 		glEnd();

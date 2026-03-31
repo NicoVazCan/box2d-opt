@@ -12,7 +12,9 @@
 #ifndef BODY_H
 #define BODY_H
 
+#include <map>
 #include "MathUtils.h"
+#include "Arbiter.h"
 
 struct Body
 {
@@ -38,6 +40,8 @@ struct Body
 	float friction;
 	float mass, invMass;
 	float I, invI;
+
+	std::map<ArbiterKey, Arbiter> arbiters;
 };
 
 #endif

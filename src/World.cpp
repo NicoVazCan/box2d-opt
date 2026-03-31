@@ -12,6 +12,7 @@
 #include "box2d-lite/World.h"
 #include "box2d-lite/Body.h"
 #include "box2d-lite/Joint.h"
+#include "box2d-lite/Arbiter.h"
 
 using std::vector;
 using std::map;
@@ -36,9 +37,13 @@ void World::Add(Joint* joint)
 
 void World::Clear()
 {
+	for (int i = 0; i < (int)bodies.size(); ++i)
+	{
+		Body* bi = bodies[i];
+		bi->arbiters.clear();
+	}
 	bodies.clear();
 	joints.clear();
-	arbiters.clear();
 }
 
 void World::BroadPhase()
@@ -60,10 +65,10 @@ void World::BroadPhase()
 
 			if (newArb.numContacts > 0)
 			{
-				ArbIter iter = arbiters.find(key);
-				if (iter == arbiters.end())
+				ArbIter iter = bi->arbiters.find(key);
+				if (iter == bi->arbiters.end())
 				{
-					arbiters.insert(ArbPair(key, newArb));
+					bi->arbiters.insert(ArbPair(key, newArb));
 				}
 				else
 				{
@@ -72,7 +77,7 @@ void World::BroadPhase()
 			}
 			else
 			{
-				arbiters.erase(key);
+				bi->arbiters.erase(key);
 			}
 		}
 	}
@@ -98,9 +103,13 @@ void World::Step(float dt)
 	}
 
 	// Perform pre-steps.
-	for (ArbIter arb = arbiters.begin(); arb != arbiters.end(); ++arb)
+	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
-		arb->second.PreStep(inv_dt);
+		Body* bi = bodies[i];
+		for (ArbIter arb = bi->arbiters.begin(); arb != bi->arbiters.end(); ++arb)
+		{
+			arb->second.PreStep(inv_dt);
+		}
 	}
 
 	for (int i = 0; i < (int)joints.size(); ++i)
@@ -111,9 +120,13 @@ void World::Step(float dt)
 	// Perform iterations
 	for (int i = 0; i < iterations; ++i)
 	{
-		for (ArbIter arb = arbiters.begin(); arb != arbiters.end(); ++arb)
+		for (int i = 0; i < (int)bodies.size(); ++i)
 		{
-			arb->second.ApplyImpulse();
+			Body* bi = bodies[i];
+			for (ArbIter arb = bi->arbiters.begin(); arb != bi->arbiters.end(); ++arb)
+			{
+				arb->second.ApplyImpulse();
+			}
 		}
 
 		for (int j = 0; j < (int)joints.size(); ++j)

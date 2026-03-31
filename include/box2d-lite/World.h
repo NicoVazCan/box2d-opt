@@ -15,7 +15,6 @@
 #include <vector>
 #include <map>
 #include "MathUtils.h"
-#include "Arbiter.h"
 
 struct Body;
 struct Joint;
@@ -34,7 +33,6 @@ struct World
 
 	std::vector<Body*> bodies;
 	std::vector<Joint*> joints;
-	std::map<ArbiterKey, Arbiter> arbiters;
 	Vec2 gravity;
 	int iterations;
 	static bool accumulateImpulses;
