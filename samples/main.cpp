@@ -44,7 +44,7 @@ namespace
 
 	int width = 1280;
 	int height = 720;
-	float zoom = 10.0f;
+	float zoom = 30.0f;
 	float pan_y = 8.0f;
 
 	World world(gravity, iterations);
@@ -497,27 +497,27 @@ static void Demo9(Body* b, Joint* j)
 
 static void Demo10(Body* b, Joint* j)
 {
-	b->Set(Vec2(100.0f, 20.0f), FLT_MAX);
+	b->Set(Vec2(200.0f, 1.0f), FLT_MAX);
 	b->friction = 0.2f;
-	b->position.Set(0.0f, -0.5f * b->width.y);
+	b->position.Set(0.0f, -20.0f);
 	b->rotation = 0.0f;
 	world.Add(b);
 	++b; ++numBodies;
 
-	for (int i = 0; i < 20; ++i)
+	for (int i = 0; i < 40; ++i)
 	{
-		for (int j = 0; j < 20; ++j)
+		for (int j = 0; j < 40; ++j)
 		{
-			b->Set(Vec2(0.4f, 0.4f), 10.0f);
+			b->Set(Vec2(1.0f, 1.0f), 1.0f);
 			b->friction = 0.2f;
-			b->position.Set(0.205f + 0.425f * j, 0.205f + 0.425f * i);
+			b->position.Set(0.51f + 1.05f * j, -10.0f + 0.51f + 1.05f * i);
 			world.Add(b);
 			++b; ++numBodies;
 		}
 	}
 }
 
-void (*demos[])(Body* b, Joint* j) = {Demo10, Demo2, Demo3, Demo4, Demo5, Demo6, Demo7, Demo8, Demo9, };
+void (*demos[])(Body* b, Joint* j) = {Demo10, Demo2, Demo3, Demo4, Demo5, Demo6, Demo7, Demo8, Demo9};
 const char* demoStrings[] = {
 	"Demo 1: A Single Box",
 	"Demo 2: Simple Pendulum",
@@ -676,7 +676,7 @@ int main(int, char**)
 	double wrldStpDeltaAccum = 0.0;
 
 	int averageFPS = 0;
-    double meanWrldStpDelta = 0.0;
+	double meanWrldStpDelta = 0.0;
 
 	while (!glfwWindowShouldClose(mainWindow))
 	{
@@ -685,17 +685,17 @@ int main(int, char**)
 		lastFrame = currentFrame;
 
 		timeAccumulator += deltaTime;
-    	frameCounter++;
+		frameCounter++;
 
-    	if (timeAccumulator >= 1.0)
-	    {
-	        averageFPS = frameCounter / timeAccumulator;
-	        meanWrldStpDelta = 100 * wrldStpDeltaAccum / frameCounter;
+		if (timeAccumulator >= 1.0)
+		{
+			averageFPS = frameCounter / timeAccumulator;
+			meanWrldStpDelta = 100 * wrldStpDeltaAccum / frameCounter;
 
-	        frameCounter = 0;
-	        timeAccumulator = 0.0;
-	        wrldStpDeltaAccum = 0.0;
-	    }
+			frameCounter = 0;
+			timeAccumulator = 0.0;
+			wrldStpDeltaAccum = 0.0;
+		}
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -723,6 +723,7 @@ int main(int, char**)
 
 		sprintf(buffer, "FPS: %2d", averageFPS);
 		DrawText(5, 155, buffer);
+		
 		sprintf(buffer, "World Step Delta Time: %0.2f ms", meanWrldStpDelta);
 		DrawText(5, 185, buffer);
 

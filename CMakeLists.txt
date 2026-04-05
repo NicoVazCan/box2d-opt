@@ -12,10 +12,9 @@ if (RPI)
 	option(GLFW_BUILD_KMSDRM "RPI KMSDRM" 1)
 endif()
 
-if (PROFILING)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -g -fno-omit-frame-pointer")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS}")
-endif()
+target_compile_options(box2d-lite PRIVATE
+    $<$<CONFIG:Profiling>:-O2 -g -fno-omit-frame-pointer>
+)
 
 if (BOX2D_BUILD_SAMPLES)
 
