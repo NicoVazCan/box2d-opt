@@ -15,6 +15,7 @@
 #include <map>
 #include "MathUtils.h"
 #include "Arbiter.h"
+#include <bvh.h>
 
 struct Body
 {
@@ -24,6 +25,26 @@ struct Body
 	void AddForce(const Vec2& f)
 	{
 		force += f;
+	}
+
+	bvh::aabb_t GetAABB()
+	{
+	    float c = cosf(rotation);
+	    float s = sinf(rotation);
+
+	    Vec2 half = width;
+	    half *= 0.5f;
+
+	    // Compute rotated extents
+	    float extentX = fabs(half.x * c) + fabs(half.y * s);
+	    float extentY = fabs(half.x * s) + fabs(half.y * c);
+
+	    Vec2 extents(extentX, extentY);
+	    Vec2 min = position - extents;
+	    Vec2 max = position + extents;
+	    bvh::aabb_t aabb{min.x, min.y, max.x, max.y};
+
+	    return aabb;
 	}
 
 	Vec2 position;
@@ -42,6 +63,8 @@ struct Body
 	float I, invI;
 
 	std::map<ArbiterKey, Arbiter> arbiters;
+	bvh::index_t idxBVH;
+	int idxWorld;
 };
 
 #endif

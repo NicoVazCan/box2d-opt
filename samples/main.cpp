@@ -24,6 +24,8 @@
 #include "box2d-lite/Body.h"
 #include "box2d-lite/Joint.h"
 
+#include <bvh.h>
+
 namespace
 {
 	GLFWwindow* mainWindow = NULL;
@@ -44,7 +46,7 @@ namespace
 
 	int width = 1280;
 	int height = 720;
-	float zoom = 10.0f;
+	float zoom = 30.0f;
 	float pan_y = 8.0f;
 
 	World world(gravity, iterations);
@@ -111,6 +113,29 @@ static void DrawJoint(Joint* joint)
 	glVertex2f(x2.x, x2.y);
 	glVertex2f(p2.x, p2.y);
 	glEnd();
+}
+
+void DrawRect(float minx, float miny, float maxx, float maxy, float r, float g, float b)
+{
+	glColor3f(r, g, b);
+	glBegin(GL_LINE_LOOP);
+	glVertex2f(minx, miny);
+	glVertex2f(maxx, miny);
+	glVertex2f(maxx, maxy);
+	glVertex2f(minx, maxy);
+	glEnd();
+}
+
+void DrawNodeBVH(const bvh::bvh_t &tree, const bvh::node_t &node)
+{
+  if (node.is_leaf()) {
+		DrawRect(node.aabb.minx, node.aabb.miny, node.aabb.maxx, node.aabb.maxy, 0.f, 1.f, 0.f);
+  }
+  else {
+		DrawRect(node.aabb.minx, node.aabb.miny, node.aabb.maxx, node.aabb.maxy, 0.25f, 0.375f, 0.5f);
+		DrawNodeBVH(tree, tree.get(node.child[0]));
+		DrawNodeBVH(tree, tree.get(node.child[1]));
+  }
 }
 
 static void LaunchBomb()
@@ -497,9 +522,9 @@ static void Demo9(Body* b, Joint* j)
 
 static void Demo10(Body* b, Joint* j)
 {
-	b->Set(Vec2(100.0f, 20.0f), FLT_MAX);
+	b->Set(Vec2(200.0f, 1.0f), FLT_MAX);
 	b->friction = 0.2f;
-	b->position.Set(0.0f, -0.5f * b->width.y);
+	b->position.Set(0.0f, -20.0f);
 	b->rotation = 0.0f;
 	world.Add(b);
 	++b; ++numBodies;
@@ -508,16 +533,16 @@ static void Demo10(Body* b, Joint* j)
 	{
 		for (int j = 0; j < 20; ++j)
 		{
-			b->Set(Vec2(0.4f, 0.4f), 10.0f);
+			b->Set(Vec2(1.0f, 1.0f), 1.0f);
 			b->friction = 0.2f;
-			b->position.Set(0.205f + 0.425f * j, 0.205f + 0.425f * i);
+			b->position.Set(0.51f + 1.05f * j, -19.0f + 0.51f + 1.05f * i);
 			world.Add(b);
 			++b; ++numBodies;
 		}
 	}
 }
 
-void (*demos[])(Body* b, Joint* j) = {Demo10, Demo2, Demo3, Demo4, Demo5, Demo6, Demo7, Demo8, Demo9, };
+void (*demos[])(Body* b, Joint* j) = {Demo10, Demo2, Demo3, Demo4, Demo5, Demo6, Demo7, Demo8, Demo9};
 const char* demoStrings[] = {
 	"Demo 1: A Single Box",
 	"Demo 2: Simple Pendulum",
@@ -676,7 +701,7 @@ int main(int, char**)
 	double wrldStpDeltaAccum = 0.0;
 
 	int averageFPS = 0;
-    double meanWrldStpDelta = 0.0;
+	double meanWrldStpDelta = 0.0;
 
 	while (!glfwWindowShouldClose(mainWindow))
 	{
@@ -685,17 +710,17 @@ int main(int, char**)
 		lastFrame = currentFrame;
 
 		timeAccumulator += deltaTime;
-    	frameCounter++;
+		frameCounter++;
 
-    	if (timeAccumulator >= 1.0)
-	    {
-	        averageFPS = frameCounter / timeAccumulator;
-	        meanWrldStpDelta = 100 * wrldStpDeltaAccum / frameCounter;
+		if (timeAccumulator >= 1.0)
+		{
+			averageFPS = frameCounter / timeAccumulator;
+			meanWrldStpDelta = 100 * wrldStpDeltaAccum / frameCounter;
 
-	        frameCounter = 0;
-	        timeAccumulator = 0.0;
-	        wrldStpDeltaAccum = 0.0;
-	    }
+			frameCounter = 0;
+			timeAccumulator = 0.0;
+			wrldStpDeltaAccum = 0.0;
+		}
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -739,6 +764,8 @@ int main(int, char**)
 
 		for (int i = 0; i < numJoints; ++i)
 			DrawJoint(joints + i);
+
+		DrawNodeBVH(world.bodiesBVH, world.bodiesBVH.root());
 
 		glPointSize(4.0f);
 		glColor3f(1.0f, 0.0f, 0.0f);

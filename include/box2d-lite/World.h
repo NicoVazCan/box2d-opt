@@ -15,6 +15,7 @@
 #include <vector>
 #include <map>
 #include "MathUtils.h"
+#include <bvh.h>
 
 struct Body;
 struct Joint;
@@ -31,6 +32,7 @@ struct World
 
 	void BroadPhase();
 
+	bvh::bvh_t bodiesBVH;
 	std::vector<Body*> bodies;
 	std::vector<Joint*> joints;
 	Vec2 gravity;

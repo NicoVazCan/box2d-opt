@@ -27,7 +27,9 @@ bool World::positionCorrection = true;
 
 void World::Add(Body* body)
 {
+	body->idxWorld = bodies.size();
 	bodies.push_back(body);
+	body->idxBVH = bodiesBVH.insert(body->GetAABB(), body);
 }
 
 void World::Add(Joint* joint)
@@ -43,19 +45,28 @@ void World::Clear()
 		bi->arbiters.clear();
 	}
 	bodies.clear();
+	bodiesBVH.clear();
 	joints.clear();
 }
 
 void World::BroadPhase()
 {
+	std::vector<bvh::index_t> query;
 	// O(n^2) broad-phase
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* bi = bodies[i];
+		query.clear();
+		bodiesBVH.find_overlaps(bi->GetAABB(), query);
 
-		for (int j = i + 1; j < (int)bodies.size(); ++j)
+		for (int j = 0; j < (int)query.size(); ++j)
 		{
-			Body* bj = bodies[j];
+			bvh::index_t bjIdx = query[j];
+			bvh::node_t bjNode = bodiesBVH.get(bjIdx);
+			Body* bj = (Body*)bjNode.user_data;
+		    
+		    if (bj->idxWorld <= i) // Avoid checking pairs already checked
+		    	continue;
 
 			if (bi->invMass == 0.0f && bj->invMass == 0.0f)
 				continue;
@@ -145,5 +156,7 @@ void World::Step(float dt)
 
 		b->force.Set(0.0f, 0.0f);
 		b->torque = 0.0f;
+
+		bodiesBVH.move(b->idxBVH, b->GetAABB());
 	}
 }
