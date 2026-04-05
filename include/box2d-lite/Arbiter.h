@@ -81,6 +81,8 @@ struct Arbiter
 
 	// Combined friction
 	float friction;
+	// Flag to detect whether touchpoints are maintained between frames
+	bool updated;
 };
 
 // This is used by std::set

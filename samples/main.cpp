@@ -30,7 +30,7 @@ namespace
 {
 	GLFWwindow* mainWindow = NULL;
 
-	Body bodies[2000];
+	Body bodies[8000];
 	Joint joints[100];
 	
 	Body* bomb = NULL;
@@ -529,13 +529,15 @@ static void Demo10(Body* b, Joint* j)
 	world.Add(b);
 	++b; ++numBodies;
 
-	for (int i = 0; i < 20; ++i)
+	const int nrows = 60, ncols = 60;
+
+	for (int i = 0; i < nrows; ++i)
 	{
-		for (int j = 0; j < 20; ++j)
+		for (int j = -ncols/2; j < ncols/2; ++j)
 		{
 			b->Set(Vec2(1.0f, 1.0f), 1.0f);
 			b->friction = 0.2f;
-			b->position.Set(0.51f + 1.05f * j, -19.0f + 0.51f + 1.05f * i);
+			b->position.Set(0.51f + 1.05f * j, -10.0f + 0.51f + 1.05f * i);
 			world.Add(b);
 			++b; ++numBodies;
 		}
@@ -765,7 +767,7 @@ int main(int, char**)
 		for (int i = 0; i < numJoints; ++i)
 			DrawJoint(joints + i);
 
-		DrawNodeBVH(world.bodiesBVH, world.bodiesBVH.root());
+		//DrawNodeBVH(world.bodiesBVH, world.bodiesBVH.root());
 
 		glPointSize(4.0f);
 		glColor3f(1.0f, 0.0f, 0.0f);

@@ -80,15 +80,13 @@ void World::BroadPhase()
 				if (iter == bi->arbiters.end())
 				{
 					bi->arbiters.insert(ArbPair(key, newArb));
+					newArb.updated = true;
 				}
 				else
 				{
 					iter->second.Update(newArb.contacts, newArb.numContacts);
+					iter->second.updated = true;
 				}
-			}
-			else
-			{
-				bi->arbiters.erase(key);
 			}
 		}
 	}
@@ -117,9 +115,19 @@ void World::Step(float dt)
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* bi = bodies[i];
-		for (ArbIter arb = bi->arbiters.begin(); arb != bi->arbiters.end(); ++arb)
+		for (ArbIter arb = bi->arbiters.begin(); arb != bi->arbiters.end();)
 		{
-			arb->second.PreStep(inv_dt);
+			if (arb->second.updated)
+			{
+				arb->second.PreStep(inv_dt);
+				arb->second.updated = false;
+				++arb;
+			}
+			else
+			{
+				// If there have been no touchpoints in the current frame, delete
+				arb = bi->arbiters.erase(arb);
+			}
 		}
 	}
 
