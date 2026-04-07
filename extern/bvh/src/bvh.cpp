@@ -153,7 +153,7 @@ bool aabb_t::raycast(float x0, float y0, float x1, float y1) const {
 }
 
 bvh_t::bvh_t()
-  : growth(0.5f)
+  : growth(1.f)
   , _free_list(invalid_index)
   , _root(invalid_index)
 {

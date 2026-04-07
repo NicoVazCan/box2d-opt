@@ -1,3 +1,5 @@
+find_package(OpenMP REQUIRED)
+
 set(BOX2D_SOURCE_FILES
 	Arbiter.cpp
 	Body.cpp
@@ -14,4 +16,4 @@ set(BOX2D_HEADER_FILES
 
 add_library(box2d-lite STATIC ${BOX2D_SOURCE_FILES} ${BOX2D_HEADER_FILES})
 target_include_directories(box2d-lite PUBLIC ../include)
-target_link_libraries(box2d-lite PUBLIC bvh)
+target_link_libraries(box2d-lite PUBLIC bvh OpenMP::OpenMP_CXX)

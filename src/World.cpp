@@ -14,6 +14,9 @@
 #include "box2d-lite/Joint.h"
 #include "box2d-lite/Arbiter.h"
 
+#include <omp.h>
+#include <iostream>
+
 using std::vector;
 using std::map;
 using std::pair;
@@ -52,7 +55,7 @@ void World::Clear()
 void World::BroadPhase()
 {
 	std::vector<bvh::index_t> query;
-	// O(n^2) broad-phase
+#pragma omp parallel for private(query) shared(bodies, bodiesBVH) schedule(dynamic,1024)
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* bi = bodies[i];
@@ -79,8 +82,8 @@ void World::BroadPhase()
 				ArbIter iter = bi->arbiters.find(key);
 				if (iter == bi->arbiters.end())
 				{
-					bi->arbiters.insert(ArbPair(key, newArb));
 					newArb.updated = true;
+					bi->arbiters.insert(ArbPair(key, newArb));
 				}
 				else
 				{

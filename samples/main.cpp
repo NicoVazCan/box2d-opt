@@ -529,7 +529,7 @@ static void Demo10(Body* b, Joint* j)
 	world.Add(b);
 	++b; ++numBodies;
 
-	const int nrows = 60, ncols = 60;
+	const int nrows = 80, ncols = 80;
 
 	for (int i = 0; i < nrows; ++i)
 	{
