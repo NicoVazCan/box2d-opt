@@ -296,22 +296,31 @@ void bvh_t::_insert(index_t node) {
   //       in the tree and thus _root is a non leaf node.
 
   // find the best sibling for node
-  const aabb_t &aabb = _get(node).aabb;
-  index_t sibi = _find_best_sibling(aabb);
-  assert(sibi != invalid_index);
-  // once the best leaf has been found we come to the insertion phase
-  const node_t &sib = _get(sibi);
-  assert(sib.is_leaf());
-  const index_t parent = sib.parent;
-  const index_t inter = _insert_into_leaf(sibi, node);
-  _get(inter).parent = parent;
-  // fix up parent child relationship
-  if (parent != invalid_index) {
-    node_t &p = _get(parent);
-    p.replace_child(sibi, inter);
+  index_t sibi;
+  {
+    std::shared_lock lock(mutex);
+
+    const aabb_t &aabb = _get(node).aabb;
+    sibi = _find_best_sibling(aabb);
+    assert(sibi != invalid_index);
+    // once the best leaf has been found we come to the insertion phase
+    const node_t &sib = _get(sibi);
+    assert(sib.is_leaf());
   }
-  // recalculate aabb and optimize on the way up
-  _recalc_aabbs(parent);
+  {
+    std::unique_lock lock(mutex);
+
+    index_t parent = _get(sibi).parent;
+    const index_t inter = _insert_into_leaf(sibi, node);
+    _get(inter).parent = parent;
+    // fix up parent child relationship
+    if (parent != invalid_index) {
+      node_t &p = _get(parent);
+      p.replace_child(sibi, inter);
+    }
+    // recalculate aabb and optimize on the way up
+    _recalc_aabbs(parent);
+  }
 }
 
 void bvh_t::remove(index_t index) {
@@ -328,29 +337,41 @@ void bvh_t::remove(index_t index) {
 }
 
 void bvh_t::move(index_t index, const aabb_t &aabb) {
-  assert(index != invalid_index);
-  assert(_is_leaf(index));
-  auto &node = _get(index);
-  // check fat aabb against slim new aabb for hysteresis on our updates
-  if (node.aabb.contains(aabb)) {
-    // this is okay and we can early exit
-    return;
+  node_t *node;
+  {
+    std::shared_lock lock(mutex);
+
+    assert(index != invalid_index);
+    assert(_is_leaf(index));
+    node = &_nodes[index];
+    // check fat aabb against slim new aabb for hysteresis on our updates
+    if (node->aabb.contains(aabb)) {
+      // this is okay and we can early exit
+      return;
+    }
   }
-  // effectively remove this node from the tree
-  _unlink(index);
-  // save the fat version of this aabb
-  node.aabb = aabb_t::grow(aabb, growth);
-  // insert into the tree
-  if (_root == invalid_index) {
-    _root = index;
-  } else if (_is_leaf(_root)) {
-    _root = _insert_into_leaf(_root, index);
-  } else {
-    _insert(index);
-  }
+  {
+    std::unique_lock lock(mutex);
+    // effectively remove this node from the tree
+    _unlink(index);
+    // save the fat version of this aabb
+    node->aabb = aabb_t::grow(aabb, growth);
+    // insert into the tree
+    if (_root == invalid_index) {
+      _root = index;
 #if VALIDATE
-  _validate(_root);
+      _validate(_root);
 #endif
+      return;
+    } else if (_is_leaf(_root)) {
+      _root = _insert_into_leaf(_root, index);
+#if VALIDATE
+      _validate(_root);
+#endif
+      return;
+    }
+  }
+  _insert(index);
 }
 
 void bvh_t::_free_all() {

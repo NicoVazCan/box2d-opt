@@ -160,6 +160,7 @@ void World::Step(float dt)
 	}
 
 	// Integrate Velocities
+#pragma omp parallel for shared(bodies, bodiesBVH)
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* b = bodies[i];

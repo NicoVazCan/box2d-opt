@@ -3,6 +3,8 @@
 #include <array>
 #include <cassert>
 #include <vector>
+#include <mutex>
+#include <shared_mutex>
 
 
 namespace bvh {
@@ -218,6 +220,8 @@ protected:
   index_t _free_list;
   // root node of the bvh
   index_t _root;
+
+  std::shared_mutex mutex;
 };
 
 } // namespace bvh

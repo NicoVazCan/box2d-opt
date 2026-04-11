@@ -12,6 +12,8 @@ target_compile_options(bvh PRIVATE
     $<$<CONFIG:Profiling>:-O2 -g -fno-omit-frame-pointer>
 )
 
+target_compile_features(bvh PUBLIC cxx_std_17)
+
 if(DEMO)
     find_package(SDL REQUIRED)
     include_directories(${SDL_INCLUDE_DIR})
