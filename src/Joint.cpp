@@ -93,17 +93,39 @@ void Joint::PreStep(float inv_dt)
 
 void Joint::ApplyImpulse()
 {
-    Vec2 dv = body2->velocity + Cross(body2->angularVelocity, r2) - body1->velocity - Cross(body1->angularVelocity, r1);
+	Vec2 b1Velocity, b2Velocity;
+	float b1AngularVelocity, b2AngularVelocity;
+#pragma omp atomic read
+	b1Velocity.xy = body1->velocity.xy;
+#pragma omp atomic read
+	b2Velocity.xy = body2->velocity.xy;
+
+#pragma omp atomic read
+	b1AngularVelocity = body1->angularVelocity;
+#pragma omp atomic read
+	b2AngularVelocity = body2->angularVelocity;
+
+    Vec2 dv = b2Velocity + Cross(b2AngularVelocity, r2) - b1Velocity - Cross(b1AngularVelocity, r1);
 
 	Vec2 impulse;
 
 	impulse = M * (bias - dv - softness * P);
 
-	body1->velocity -= body1->invMass * impulse;
-	body1->angularVelocity -= body1->invI * Cross(r1, impulse);
+	b1Velocity -= body1->invMass * impulse;
+	b1AngularVelocity -= body1->invI * Cross(r1, impulse);
 
-	body2->velocity += body2->invMass * impulse;
-	body2->angularVelocity += body2->invI * Cross(r2, impulse);
+	b2Velocity += body2->invMass * impulse;
+	b2AngularVelocity += body2->invI * Cross(r2, impulse);
 
 	P += impulse;
+
+#pragma omp atomic write
+	body1->velocity.xy = b1Velocity.xy;
+#pragma omp atomic write
+	body2->velocity.xy = b2Velocity.xy;
+
+#pragma omp atomic write
+	body1->angularVelocity = b1AngularVelocity;
+#pragma omp atomic write
+	body2->angularVelocity = b2AngularVelocity;
 }

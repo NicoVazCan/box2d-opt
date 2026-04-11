@@ -126,6 +126,18 @@ void Arbiter::ApplyImpulse()
 {
 	Body* b1 = body1;
 	Body* b2 = body2;
+	Vec2 b1Velocity, b2Velocity;
+	float b1AngularVelocity, b2AngularVelocity;
+
+#pragma omp atomic read
+	b1Velocity.xy = b1->velocity.xy;
+#pragma omp atomic read
+	b2Velocity.xy = b2->velocity.xy;
+
+#pragma omp atomic read
+	b1AngularVelocity = b1->angularVelocity;
+#pragma omp atomic read
+	b2AngularVelocity = b2->angularVelocity;
 
 	for (int i = 0; i < numContacts; ++i)
 	{
@@ -134,7 +146,7 @@ void Arbiter::ApplyImpulse()
 		c->r2 = c->position - b2->position;
 
 		// Relative velocity at contact
-		Vec2 dv = b2->velocity + Cross(b2->angularVelocity, c->r2) - b1->velocity - Cross(b1->angularVelocity, c->r1);
+		Vec2 dv = b2Velocity + Cross(b2AngularVelocity, c->r2) - b1Velocity - Cross(b1AngularVelocity, c->r1);
 
 		// Compute normal impulse
 		float vn = Dot(dv, c->normal);
@@ -156,14 +168,14 @@ void Arbiter::ApplyImpulse()
 		// Apply contact impulse
 		Vec2 Pn = dPn * c->normal;
 
-		b1->velocity -= b1->invMass * Pn;
-		b1->angularVelocity -= b1->invI * Cross(c->r1, Pn);
+		b1Velocity -= b1->invMass * Pn;
+		b1AngularVelocity -= b1->invI * Cross(c->r1, Pn);
 
-		b2->velocity += b2->invMass * Pn;
-		b2->angularVelocity += b2->invI * Cross(c->r2, Pn);
+		b2Velocity += b2->invMass * Pn;
+		b2AngularVelocity += b2->invI * Cross(c->r2, Pn);
 
 		// Relative velocity at contact
-		dv = b2->velocity + Cross(b2->angularVelocity, c->r2) - b1->velocity - Cross(b1->angularVelocity, c->r1);
+		dv = b2Velocity + Cross(b2AngularVelocity, c->r2) - b1Velocity - Cross(b1AngularVelocity, c->r1);
 
 		Vec2 tangent = Cross(c->normal, 1.0f);
 		float vt = Dot(dv, tangent);
@@ -188,10 +200,20 @@ void Arbiter::ApplyImpulse()
 		// Apply contact impulse
 		Vec2 Pt = dPt * tangent;
 
-		b1->velocity -= b1->invMass * Pt;
-		b1->angularVelocity -= b1->invI * Cross(c->r1, Pt);
+		b1Velocity -= b1->invMass * Pt;
+		b1AngularVelocity -= b1->invI * Cross(c->r1, Pt);
 
-		b2->velocity += b2->invMass * Pt;
-		b2->angularVelocity += b2->invI * Cross(c->r2, Pt);
+		b2Velocity += b2->invMass * Pt;
+		b2AngularVelocity += b2->invI * Cross(c->r2, Pt);
 	}
+
+#pragma omp atomic write
+	b1->velocity.xy = b1Velocity.xy;
+#pragma omp atomic write
+	b2->velocity.xy = b2Velocity.xy;
+
+#pragma omp atomic write
+	b1->angularVelocity = b1AngularVelocity;
+#pragma omp atomic write
+	b2->angularVelocity = b2AngularVelocity;
 }

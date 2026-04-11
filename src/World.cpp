@@ -55,7 +55,7 @@ void World::Clear()
 void World::BroadPhase()
 {
 	std::vector<bvh::index_t> query;
-#pragma omp parallel for private(query) shared(bodies, bodiesBVH) schedule(dynamic,1024)
+#pragma omp parallel for private(query) shared(bodies, bodiesBVH) schedule(dynamic,512) if(bodies.size() >= 512)
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* bi = bodies[i];
@@ -140,17 +140,19 @@ void World::Step(float dt)
 	}
 
 	// Perform iterations
+#pragma omp parallel shared(bodies) if(bodies.size() >= 512)
 	for (int i = 0; i < iterations; ++i)
 	{
-		for (int i = 0; i < (int)bodies.size(); ++i)
+#pragma omp for private(i) schedule(dynamic, 512)
+		for (int j = 0; j < (int)bodies.size(); ++j)
 		{
-			Body* bi = bodies[i];
+			Body* bi = bodies[j];
 			for (ArbIter arb = bi->arbiters.begin(); arb != bi->arbiters.end(); ++arb)
 			{
 				arb->second.ApplyImpulse();
 			}
 		}
-
+#pragma omp for private(i) schedule(dynamic, 512)
 		for (int j = 0; j < (int)joints.size(); ++j)
 		{
 			joints[j]->ApplyImpulse();
