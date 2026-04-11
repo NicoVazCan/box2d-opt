@@ -772,7 +772,7 @@ int main(int, char**)
 		glPointSize(4.0f);
 		glColor3f(1.0f, 0.0f, 0.0f);
 		glBegin(GL_POINTS);
-		std::map<ArbiterKey, Arbiter>::const_iterator iter;
+		std::map<Body*, Arbiter>::const_iterator iter;
 		for (int i = 0; i < (int)world.bodies.size(); ++i)
 		{
 			Body* bi = world.bodies[i];

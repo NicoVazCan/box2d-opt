@@ -18,8 +18,8 @@ using std::vector;
 using std::map;
 using std::pair;
 
-typedef map<ArbiterKey, Arbiter>::iterator ArbIter;
-typedef pair<ArbiterKey, Arbiter> ArbPair;
+typedef map<Body*, Arbiter>::iterator ArbIter;
+typedef pair<Body*, Arbiter> ArbPair;
 
 bool World::accumulateImpulses = true;
 bool World::warmStarting = true;
@@ -52,7 +52,7 @@ void World::Clear()
 void World::BroadPhase()
 {
 	std::vector<bvh::index_t> query;
-	// O(n^2) broad-phase
+
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* bi = bodies[i];
@@ -72,14 +72,13 @@ void World::BroadPhase()
 				continue;
 
 			Arbiter newArb(bi, bj);
-			ArbiterKey key(bi, bj);
 
 			if (newArb.numContacts > 0)
 			{
-				ArbIter iter = bi->arbiters.find(key);
+				ArbIter iter = bi->arbiters.find(bj);
 				if (iter == bi->arbiters.end())
 				{
-					bi->arbiters.insert(ArbPair(key, newArb));
+					bi->arbiters.insert(ArbPair(bj, newArb));
 					newArb.updated = true;
 				}
 				else
