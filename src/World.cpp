@@ -21,8 +21,8 @@ using std::vector;
 using std::map;
 using std::pair;
 
-typedef map<ArbiterKey, Arbiter>::iterator ArbIter;
-typedef pair<ArbiterKey, Arbiter> ArbPair;
+typedef map<Body*, Arbiter>::iterator ArbIter;
+typedef pair<Body*, Arbiter> ArbPair;
 
 bool World::accumulateImpulses = true;
 bool World::warmStarting = true;
@@ -55,6 +55,7 @@ void World::Clear()
 void World::BroadPhase()
 {
 	std::vector<bvh::index_t> query;
+
 #pragma omp parallel for private(query) shared(bodies, bodiesBVH) schedule(dynamic,512) if(bodies.size() >= 512)
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
@@ -75,15 +76,14 @@ void World::BroadPhase()
 				continue;
 
 			Arbiter newArb(bi, bj);
-			ArbiterKey key(bi, bj);
 
 			if (newArb.numContacts > 0)
 			{
-				ArbIter iter = bi->arbiters.find(key);
+				ArbIter iter = bi->arbiters.find(bj);
 				if (iter == bi->arbiters.end())
 				{
 					newArb.updated = true;
-					bi->arbiters.insert(ArbPair(key, newArb));
+					bi->arbiters.insert(ArbPair(bj, newArb));
 				}
 				else
 				{

@@ -62,7 +62,7 @@ struct Body
 	float mass, invMass;
 	float I, invI;
 
-	std::map<ArbiterKey, Arbiter> arbiters;
+	std::map<Body*, Arbiter> arbiters;
 	bvh::index_t idxBVH;
 	int idxWorld;
 };
