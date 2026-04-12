@@ -57,6 +57,8 @@ namespace
 	float zoom = 30.0f;
 	float pan_y = 8.0f;
 
+	bool drawBVHTree = false;
+
 	World world(gravity, iterations);
 }
 
@@ -743,6 +745,10 @@ static void Keyboard(GLFWwindow* window, int key, int scancode, int action, int 
 			world.gravity = noGravity;
 		break;
 
+	case GLFW_KEY_D:
+		drawBVHTree = !drawBVHTree;
+		break;
+
 	case GLFW_KEY_SPACE:
 		LaunchBomb();
 		break;
@@ -891,11 +897,14 @@ int main(int argc, char const *argv[])
 		sprintf(buffer, "(G)ravity Enabled %s", world.gravity.y != 0.0f ? "ON" : "OFF");
 		DrawText(5, 155, buffer);
 
-		sprintf(buffer, "FPS: %2d", averageFPS);
+		sprintf(buffer, "(D)raw BVH Tree Enabled %s", drawBVHTree ? "ON" : "OFF");
 		DrawText(5, 185, buffer);
+
+		sprintf(buffer, "FPS: %2d", averageFPS);
+		DrawText(5, 205, buffer);
 		
 		sprintf(buffer, "World Step Delta Time: %0.2f ms", meanWrldStpDelta);
-		DrawText(5, 205, buffer);
+		DrawText(5, 225, buffer);
 
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
@@ -910,7 +919,8 @@ int main(int argc, char const *argv[])
 		for (int i = 0; i < numJoints; ++i)
 			DrawJoint(joints + i);
 
-		//DrawNodeBVH(world.bodiesBVH, world.bodiesBVH.root());
+		if (drawBVHTree)
+			DrawNodeBVH(world.bodiesBVH, world.bodiesBVH.root());
 
 		glPointSize(4.0f);
 		glColor3f(1.0f, 0.0f, 0.0f);
