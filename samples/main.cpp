@@ -11,6 +11,8 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 
 #include "imgui/imgui.h"
 #include "imgui_impl_glfw.h"
@@ -24,18 +26,24 @@
 #include "box2d-lite/Body.h"
 #include "box2d-lite/Joint.h"
 
+#define MAX_NUM_BODIES 8000
+#define MAX_NUM_JOINTS (8000*2)
+
 namespace
 {
 	GLFWwindow* mainWindow = NULL;
 
-	Body bodies[2000];
-	Joint joints[100];
+	Body bodies[MAX_NUM_BODIES];
+	Joint joints[MAX_NUM_JOINTS];
 	
 	Body* bomb = NULL;
 
 	float timeStep = 1.0f / 60.0f;
 	int iterations = 10;
 	Vec2 gravity(0.0f, -10.0f);
+	Vec2 noGravity(0.0f, 0.0f);
+
+	int inputNumBodies = 0;
 
 	int numBodies = 0;
 	int numJoints = 0;
@@ -504,9 +512,12 @@ static void Demo10(Body* b, Joint* j)
 	world.Add(b);
 	++b; ++numBodies;
 
-	for (int i = 0; i < 40; ++i)
+	const int size = sqrt(inputNumBodies);
+	const int nrows = size, ncols = size;
+
+	for (int i = 0; i < nrows; ++i)
 	{
-		for (int j = 0; j < 40; ++j)
+		for (int j = -ncols/2; j < (ncols+1)/2; ++j)
 		{
 			b->Set(Vec2(1.0f, 1.0f), 1.0f);
 			b->friction = 0.2f;
@@ -517,7 +528,122 @@ static void Demo10(Body* b, Joint* j)
 	}
 }
 
-void (*demos[])(Body* b, Joint* j) = {Demo10, Demo2, Demo3, Demo4, Demo5, Demo6, Demo7, Demo8, Demo9};
+static void Demo11(Body* b, Joint* j)
+{
+	b->Set(Vec2(100.0f, 1.0f), FLT_MAX);
+	b->friction = 0.2f;
+	b->position.Set(0.0f, -20.0f);
+	b->rotation = 0.0f;
+	world.Add(b);
+	++b; ++numBodies;
+
+	b->Set(Vec2(100.0f, 1.0f), FLT_MAX);
+	b->friction = 0.2f;
+	b->position.Set(0.0f, 36.0f);
+	b->rotation = 0.0f;
+	world.Add(b);
+	++b; ++numBodies;
+
+	b->Set(Vec2(1.0f, 55.0f), FLT_MAX);
+	b->friction = 0.2f;
+	b->position.Set(-50.5f, 8.0f);
+	b->rotation = 0.0f;
+	world.Add(b);
+	++b; ++numBodies;
+
+	b->Set(Vec2(1.0f, 55.0f), FLT_MAX);
+	b->friction = 0.2f;
+	b->position.Set(50.5f, 8.0f);
+	b->rotation = 0.0f;
+	world.Add(b);
+	++b; ++numBodies;
+
+	const int maxForce = 100.0f;
+
+	for (int i = 0; i < inputNumBodies; ++i)
+	{
+		b->Set(Vec2(1.0f, 1.0f), 1.0f);
+		b->friction = 0.0f;
+		float x = Random(-49.5f, 49.5f);
+		float y = Random(-19.0f, 35.0f);
+		b->position.Set(Random(-49.5f, 49.5f), Random(-19.0f, 35.0f));
+		b->force.Set(Random(-maxForce, maxForce), Random(-maxForce, maxForce));
+		world.Add(b);
+		++b; ++numBodies;
+	}
+
+	world.gravity = noGravity;
+}
+
+static void Demo12(Body* b, Joint* j)
+{
+	b->Set(Vec2(200.0f, 1.0f), FLT_MAX);
+	b->friction = 0.2f;
+	b->position.Set(0.0f, -20.0f);
+	b->rotation = 0.0f;
+	world.Add(b);
+
+	Body * bFloor = b;
+	++b;
+	++numBodies;
+
+	float mass = 10.0f;
+
+	// Tuning
+	float frequencyHz = 4.0f;
+	float dampingRatio = 0.7f;
+
+	// frequency in radians
+	float omega = 2.0f * k_pi * frequencyHz;
+
+	// damping coefficient
+	float d = 2.0f * mass * dampingRatio * omega;
+
+	// spring stiffness
+	float k = mass * omega * omega;
+
+	// magic formulas
+	float softness = 1.0f / (d + timeStep * k);
+	float biasFactor = timeStep * k / (d + timeStep * k);
+
+	const int numBodiesRope = 70;
+
+	int numRopes = inputNumBodies / numBodiesRope;
+	numRopes = numRopes == 0 ? 1 : numRopes;
+
+	const float ropeXOffset = 1.0f, ropeYOffset = 0.2f;
+	const float ropeInitY = 30.0f;
+
+	for (int ir = 0; ir < numRopes; ++ir) {
+		Body * b1 = bFloor;
+		const float xOffset = (ir - (numRopes / 2)) * ropeXOffset;;
+		const float y = ropeInitY - ropeYOffset * (numRopes - ir);
+
+		for (int ib = 0; ib < numBodiesRope; ++ib)
+		{
+			Vec2 x(xOffset + 0.5f + ib * 0.5f, y);
+			b->Set(Vec2(0.4f, 0.1f), mass);
+			b->friction = 0.2f;
+			b->position = x;
+			b->rotation = 0.0f;
+			world.Add(b);
+
+			j->Set(b1, b, Vec2(xOffset + ib * 0.5f, y));
+			j->softness = softness;
+			j->biasFactor = biasFactor;
+			world.Add(j);
+
+			b1 = b;
+			++b;
+			++numBodies;
+			++j;
+			++numJoints;
+		}
+	}
+}
+
+#define MAX_DEMOS 12
+void (*demos[])(Body* b, Joint* j) = {Demo1, Demo2, Demo3, Demo4, Demo5, Demo6, Demo7, Demo8, Demo9, Demo10, Demo11, Demo12};
 const char* demoStrings[] = {
 	"Demo 1: A Single Box",
 	"Demo 2: Simple Pendulum",
@@ -527,7 +653,11 @@ const char* demoStrings[] = {
 	"Demo 6: A Teeter",
 	"Demo 7: A Suspension Bridge",
 	"Demo 8: Dominos",
-	"Demo 9: Multi-pendulum"};
+	"Demo 9: Multi-pendulum",
+	"Demo 10: Rubik",
+	"Demo 11: Space",
+	"Demo 12: Ropes"
+};
 
 static void InitDemo(int index)
 {
@@ -563,7 +693,10 @@ static void Keyboard(GLFWwindow* window, int key, int scancode, int action, int 
 	case '7':
 	case '8':
 	case '9':
-		InitDemo(key - GLFW_KEY_1);
+		if (mods & GLFW_MOD_SHIFT && 9 + key - GLFW_KEY_1 < MAX_DEMOS)
+			InitDemo(9 + key - GLFW_KEY_1);
+		else
+			InitDemo(key - GLFW_KEY_1);
 		break;
 
 	case GLFW_KEY_A:
@@ -576,6 +709,13 @@ static void Keyboard(GLFWwindow* window, int key, int scancode, int action, int 
 
 	case GLFW_KEY_W:
 		World::warmStarting = !World::warmStarting;
+		break;
+
+	case GLFW_KEY_G:
+		if (world.gravity.y == 0.0f)
+			world.gravity = gravity;
+		else
+			world.gravity = noGravity;
 		break;
 
 	case GLFW_KEY_SPACE:
@@ -606,8 +746,10 @@ static void Reshape(GLFWwindow*, int w, int h)
 	}
 }
 
-int main(int, char**)
+int main(int argc, char const *argv[])
 {
+	inputNumBodies = argc >= 2 ? atoi(argv[1]) : 64;
+
 	glfwSetErrorCallback(glfwErrorCallback);
 
 	if (glfwInit() == 0)
@@ -667,7 +809,7 @@ int main(int, char**)
 		glOrtho(-zoom, zoom, -zoom / aspect + pan_y, zoom / aspect + pan_y, -1.0, 1.0);
 	}
 
-	InitDemo(0);
+	InitDemo(10);
 
 	double lastFrame = glfwGetTime();
 
@@ -721,11 +863,14 @@ int main(int, char**)
 		sprintf(buffer, "(W)arm Starting %s", World::warmStarting ? "ON" : "OFF");
 		DrawText(5, 125, buffer);
 
-		sprintf(buffer, "FPS: %2d", averageFPS);
+		sprintf(buffer, "(G)ravity Enabled %s", world.gravity.y != 0.0f ? "ON" : "OFF");
 		DrawText(5, 155, buffer);
+
+		sprintf(buffer, "FPS: %2d", averageFPS);
+		DrawText(5, 185, buffer);
 		
 		sprintf(buffer, "World Step Delta Time: %0.2f ms", meanWrldStpDelta);
-		DrawText(5, 185, buffer);
+		DrawText(5, 205, buffer);
 
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
