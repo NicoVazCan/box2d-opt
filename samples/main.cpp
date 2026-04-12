@@ -749,6 +749,8 @@ static void Reshape(GLFWwindow*, int w, int h)
 int main(int argc, char const *argv[])
 {
 	inputNumBodies = argc >= 2 ? atoi(argv[1]) : 64;
+	bool timeLimit = argc >= 3;
+	double secondsLeft = timeLimit ? atof(argv[2]) : 0.0f;
 
 	glfwSetErrorCallback(glfwErrorCallback);
 
@@ -820,9 +822,13 @@ int main(int argc, char const *argv[])
 	int averageFPS = 0;
 	double meanWrldStpDelta = 0.0;
 
+	secondsLeft += lastFrame;
 	while (!glfwWindowShouldClose(mainWindow))
 	{
 		double currentFrame = glfwGetTime();
+		if (timeLimit && secondsLeft - currentFrame <= 0.0f)
+			break;
+
 		double deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 
