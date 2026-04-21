@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.8)
 
 project(box2d-lite LANGUAGES CXX)
 
-add_subdirectory(src)
-
 option(BOX2D_BUILD_SAMPLES "Build the box2d-lite sample program" ON)
+option(RPI "Build sample for Raspberry Pi" OFF)
+option(HEADLESS "Build sample headless" OFF)
 
 if (RPI)
 	option(GLFW_BUILD_X11 "X11" 0)
@@ -12,15 +12,15 @@ if (RPI)
 	option(GLFW_BUILD_KMSDRM "RPI KMSDRM" 1)
 endif()
 
-target_compile_options(box2d-lite PRIVATE
-    $<$<CONFIG:Profiling>:-O2 -g -fno-omit-frame-pointer>
-)
+add_subdirectory(src)
 
 if (BOX2D_BUILD_SAMPLES)
-
-	add_subdirectory(extern/glad)
-	add_subdirectory(extern/glfw-plus-kmsdrm)
-	add_subdirectory(extern/imgui)
+	if (NOT HEADLESS)
+		message(STATUS "Not headless")
+		add_subdirectory(extern/glad)
+		add_subdirectory(extern/glfw-plus-kmsdrm)
+		add_subdirectory(extern/imgui)
+	endif()
 	add_subdirectory(samples)
 
 	# default startup project for Visual Studio
@@ -28,4 +28,7 @@ if (BOX2D_BUILD_SAMPLES)
 		set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT samples)
 	endif()
 
+	target_compile_options(box2d-lite PUBLIC
+	    $<$<CONFIG:Profiling>:-O2 -g -fno-omit-frame-pointer>
+	)
 endif()

@@ -13,7 +13,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <getopt.h>
+#include <string.h>
+#include <limits.h>
+#include <chrono>
 
+#ifndef HEADLESS
 #include "imgui/imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl2.h"
@@ -21,20 +26,28 @@
 #define GLFW_INCLUDE_NONE
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
+#endif
 
 #include "box2d-lite/World.h"
 #include "box2d-lite/Body.h"
 #include "box2d-lite/Joint.h"
 
-#define MAX_NUM_BODIES 8000
-#define MAX_NUM_JOINTS (8000*2)
+struct PrgArgs
+{
+	int demo;
+	bool headless, stepLimit;
+	unsigned long steps;
+	size_t numBodies;
+};
 
 namespace
 {
+#ifndef HEADLESS
 	GLFWwindow* mainWindow = NULL;
+#endif
 
-	Body bodies[MAX_NUM_BODIES];
-	Joint joints[MAX_NUM_JOINTS];
+	Body *bodies;
+	Joint *joints;
 	
 	Body* bomb = NULL;
 
@@ -43,7 +56,7 @@ namespace
 	Vec2 gravity(0.0f, -10.0f);
 	Vec2 noGravity(0.0f, 0.0f);
 
-	int inputNumBodies = 0;
+	PrgArgs args = {0, false, false, 0, 64};
 
 	int numBodies = 0;
 	int numJoints = 0;
@@ -58,6 +71,7 @@ namespace
 	World world(gravity, iterations);
 }
 
+#ifndef HEADLESS
 static void glfwErrorCallback(int error, const char* description)
 {
 	printf("GLFW error %d: %s\n", error, description);
@@ -120,6 +134,7 @@ static void DrawJoint(Joint* joint)
 	glVertex2f(p2.x, p2.y);
 	glEnd();
 }
+#endif
 
 static void LaunchBomb()
 {
@@ -512,7 +527,7 @@ static void Demo10(Body* b, Joint* j)
 	world.Add(b);
 	++b; ++numBodies;
 
-	const int size = sqrt(inputNumBodies);
+	const int size = sqrt(args.numBodies - 1);
 	const int nrows = size, ncols = size;
 
 	for (int i = 0; i < nrows; ++i)
@@ -560,7 +575,7 @@ static void Demo11(Body* b, Joint* j)
 
 	const int maxForce = 100.0f;
 
-	for (int i = 0; i < inputNumBodies; ++i)
+	for (int i = 0; i < args.numBodies - 4; ++i)
 	{
 		b->Set(Vec2(1.0f, 1.0f), 1.0f);
 		b->friction = 0.0f;
@@ -608,7 +623,7 @@ static void Demo12(Body* b, Joint* j)
 
 	const int numBodiesRope = 70;
 
-	int numRopes = inputNumBodies / numBodiesRope;
+	int numRopes = (args.numBodies - 1) / numBodiesRope;
 	numRopes = numRopes == 0 ? 1 : numRopes;
 
 	const float ropeXOffset = 1.0f, ropeYOffset = 0.2f;
@@ -670,6 +685,7 @@ static void InitDemo(int index)
 	demos[index](bodies, joints);
 }
 
+#ifndef HEADLESS
 static void Keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	if (action != GLFW_PRESS)
@@ -745,13 +761,117 @@ static void Reshape(GLFWwindow*, int w, int h)
 		glOrtho(-zoom, zoom, -zoom / aspect + pan_y, zoom / aspect + pan_y, -1.0, 1.0);
 	}
 }
+#endif
 
-int main(int argc, char const *argv[])
+static const struct option longOpts[] = {
+	{"help", 			no_argument, 		0, 'h'},
+	{"demo", 			required_argument, 	0, 'd'},
+#ifndef HEADLESS
+	{"headless", 	no_argument, 			0, 'e'},
+#endif
+	{"steps", 		required_argument, 		0, 's'},
+	{"bodies", 		required_argument, 		0, 'b'},
+	{0, 					0, 				0, 0  }
+};
+static const char* opts = (
+	"h"
+	"d:"
+#ifndef HEADLESS
+	"e"
+#endif
+	"s:"
+	"b:"
+);
+static const char* optInfo[] = {
+	"display this help",
+	"demo number",
+#ifndef HEADLESS
+	"enable headless mode, -s or --step is required",
+#endif
+	"exit when the specified number of frames is exceeded"
+#ifdef HEADLESS
+	" (required)"
+#endif
+	,
+	"number of bodies in the demo"
+};
+static const char* argInfo[] = {
+	0,
+	"integer",
+	0,
+	"integer",
+	"integer"
+};
+
+static void printInfo(const char* prgName)
 {
-	inputNumBodies = argc >= 2 ? atoi(argv[1]) : 64;
-	bool timeLimit = argc >= 3;
-	double secondsLeft = timeLimit ? atof(argv[2]) : 0.0f;
+	int optIdx = 0;
+	const struct option* opt;
+	printf("Usage: %s [OPTION]...\n", prgName);
+	printf("Optimized and parallelized Box2D-lite physics engine\n");
+	printf("\n");
+	printf("Options:\n");
+	while ((opt = &longOpts[optIdx])->name != 0)
+	{
+		bool hasArg = opt->has_arg == required_argument;
+	char optBuffer[128];
+	snprintf(
+		optBuffer, sizeof(optBuffer),
+		"-%c, --%s%s%s%s",
+		opt->val,
+		opt->name,
+		hasArg ? "=[" : "",
+		hasArg ? argInfo[optIdx] : "",
+		hasArg ? "]" : ""
+	);
+	printf("  %-30s %s\n", optBuffer, optInfo[optIdx]);
+		optIdx++;
+	}
+}
 
+static int parseArgv(int argc, char* const* argv)
+{
+	int opt;
+
+  while ((opt = getopt_long(argc, argv, opts, longOpts, NULL)) != -1)
+  {
+	switch (opt)
+	{
+	  case 'h':
+		return -1;
+	  case 'd':
+		args.demo = atoi(optarg);
+		break;
+	  case 'e':
+		args.headless = true;
+		break;
+	  case 's':
+		args.stepLimit = true;
+		args.steps = strtoul(optarg, NULL, 10);
+		break;
+	  case 'b':
+		args.numBodies = strtoul(optarg, NULL, 10);
+		break;
+	  default:
+		return -1;
+	}
+  }
+
+  if (
+#ifndef HEADLESS
+  	args.headless &&
+#endif
+  	!args.stepLimit
+  )
+  {
+		return -1;
+  }
+  return 0;
+}
+
+#ifndef HEADLESS
+static int runDemo()
+{
 	glfwSetErrorCallback(glfwErrorCallback);
 
 	if (glfwInit() == 0)
@@ -811,38 +931,37 @@ int main(int argc, char const *argv[])
 		glOrtho(-zoom, zoom, -zoom / aspect + pan_y, zoom / aspect + pan_y, -1.0, 1.0);
 	}
 
-	InitDemo(10);
+	const double infoRefreshSecs = 1.0;
 
-	double lastFrame = glfwGetTime();
+	unsigned long step = 0;
 
-	double timeAccumulator = 0.0;
-	int frameCounter = 0;
-	double wrldStpDeltaAccum = 0.0;
+	int frameCounter = 1;
+	double lastFrameTime;
+	double frameSecsAccum = 0.0;
+	double stepMsAcum = 0.0;
 
-	int averageFPS = 0;
-	double meanWrldStpDelta = 0.0;
+	int avgFPS = 0;
+	double avgStepMs = 0.0, maxStepMs = -INFINITY, minStepMs = INFINITY;
 
-	secondsLeft += lastFrame;
+	lastFrameTime = glfwGetTime();
 	while (!glfwWindowShouldClose(mainWindow))
 	{
-		double currentFrame = glfwGetTime();
-		if (timeLimit && secondsLeft - currentFrame <= 0.0f)
+		if (args.stepLimit && step > args.steps)
 			break;
 
-		double deltaTime = currentFrame - lastFrame;
-		lastFrame = currentFrame;
+		double currentFrameTime = glfwGetTime();
+		double frameSecs = currentFrameTime - lastFrameTime;
+		lastFrameTime = currentFrameTime;
+		frameSecsAccum += frameSecs;
 
-		timeAccumulator += deltaTime;
-		frameCounter++;
-
-		if (timeAccumulator >= 1.0)
+		if (frameSecsAccum >= infoRefreshSecs)
 		{
-			averageFPS = frameCounter / timeAccumulator;
-			meanWrldStpDelta = 100 * wrldStpDeltaAccum / frameCounter;
+			avgFPS = frameCounter / frameSecsAccum;
+			avgStepMs = stepMsAcum / frameCounter;
 
-			frameCounter = 0;
-			timeAccumulator = 0.0;
-			wrldStpDeltaAccum = 0.0;
+			frameCounter = 1;
+			frameSecsAccum = 0.0;
+			stepMsAcum = 0.0;
 		}
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -872,18 +991,33 @@ int main(int argc, char const *argv[])
 		sprintf(buffer, "(G)ravity Enabled %s", world.gravity.y != 0.0f ? "ON" : "OFF");
 		DrawText(5, 155, buffer);
 
-		sprintf(buffer, "FPS: %2d", averageFPS);
+		sprintf(buffer, "FPS: %2d", avgFPS);
 		DrawText(5, 185, buffer);
 		
-		sprintf(buffer, "World Step Delta Time: %0.2f ms", meanWrldStpDelta);
+		sprintf(buffer, "World Step Time: %0.2f ms", avgStepMs);
 		DrawText(5, 205, buffer);
+
+		sprintf(buffer, "World Max Step Time: %0.2f ms", maxStepMs);
+		DrawText(5, 225, buffer);
+
+		sprintf(buffer, "World Min Step Time: %0.2f ms", minStepMs);
+		DrawText(5, 245, buffer);
+
+		sprintf(buffer, "Step: %lu", step);
+		DrawText(5, 265, buffer);
 
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
 
-		currentFrame = glfwGetTime();
+		double preStepTime = glfwGetTime();
 		world.Step(timeStep);
-		wrldStpDeltaAccum += glfwGetTime() - currentFrame;
+		double posStepTime = glfwGetTime();
+
+		double stepMs = (posStepTime - preStepTime) * 1000;
+
+		stepMsAcum += stepMs;
+		if (maxStepMs < stepMs) maxStepMs = stepMs;
+		if (minStepMs > stepMs) minStepMs = stepMs;
 
 		for (int i = 0; i < numBodies; ++i)
 			DrawBody(bodies + i);
@@ -912,8 +1046,88 @@ int main(int argc, char const *argv[])
 
 		glfwPollEvents();
 		glfwSwapBuffers(mainWindow);
+
+		frameCounter++;
+		step++;
 	}
 
 	glfwTerminate();
+
 	return 0;
+}
+#endif
+
+static int runDemoHeadless()
+{
+	double avgStepMs = 0.0;
+	double stepM2 = 0.0;
+	double maxStepMs = -INFINITY;
+	double minStepMs = INFINITY;
+
+	for (int step = 0; step < args.steps; ++step)
+	{
+		auto preStepTime = std::chrono::high_resolution_clock::now();
+		world.Step(timeStep);
+		auto posStepTime = std::chrono::high_resolution_clock::now();
+
+		double stepMs = std::chrono::duration<double>(posStepTime - preStepTime).count() * 1000.0;
+
+		if (maxStepMs < stepMs) maxStepMs = stepMs;
+		if (minStepMs > stepMs) minStepMs = stepMs;
+
+		double delta = stepMs - avgStepMs;
+		avgStepMs += delta / (step + 1);
+		double delta2 = stepMs - avgStepMs;
+		stepM2 += delta * delta2;
+	}
+
+	double variance = (args.steps > 1) ? (stepM2 / (args.steps - 1)) : 0.0;
+	double stdStepMs = sqrt(variance);
+
+	printf("Mean step time: %.2f ms\n", avgStepMs);
+	printf("Std step time: %.2f ms\n", stdStepMs);
+	printf("Max step time: %.2f ms\n", maxStepMs);
+	printf("Min step time: %.2f ms\n", minStepMs);
+
+	return 0;
+}
+
+int main(int argc, char* const* argv)
+{
+	const char* prgName = rindex(argv[0], '/') + 1;
+	int exitCode;
+
+	if (parseArgv(argc, argv) == -1)
+	{
+		printInfo(prgName);
+		return 0;
+	}
+
+	if (!(bodies = (Body*)calloc(args.numBodies, sizeof(Body))))
+	{
+		printf("Error: Can not allocate bodies.\n");
+		return -1;
+	}
+
+	if (!(joints = (Joint*)calloc(args.numBodies, sizeof(Joint))))
+	{
+		printf("Error: Can not allocate joints.\n");
+		return -1;
+	}
+
+	InitDemo(args.demo);
+
+#ifndef HEADLESS
+	if (args.headless)
+#endif
+		exitCode = runDemoHeadless();
+#ifndef HEADLESS
+	else
+		exitCode = runDemo();
+#endif
+
+	free(bodies);
+	free(joints);
+
+	return exitCode;
 }
