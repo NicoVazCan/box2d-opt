@@ -35,9 +35,10 @@
 struct PrgArgs
 {
 	int demo;
-	bool headless, stepLimit;
+	bool headless, stepLimit, log;
 	unsigned long steps;
 	size_t numBodies;
+	const char* logFile;
 };
 
 namespace
@@ -56,7 +57,7 @@ namespace
 	Vec2 gravity(0.0f, -10.0f);
 	Vec2 noGravity(0.0f, 0.0f);
 
-	PrgArgs args = {0, false, false, 0, 64};
+	PrgArgs args = {0, false, false, false, 0, 64, NULL};
 
 	int numBodies = 0;
 	int numJoints = 0;
@@ -771,6 +772,7 @@ static const struct option longOpts[] = {
 #endif
 	{"steps", 		required_argument, 		0, 's'},
 	{"bodies", 		required_argument, 		0, 'b'},
+	{"output", 		optional_argument, 		0, 'o'},
 	{0, 					0, 				0, 0  }
 };
 static const char* opts = (
@@ -781,6 +783,7 @@ static const char* opts = (
 #endif
 	"s:"
 	"b:"
+	"o::"
 );
 static const char* optInfo[] = {
 	"display this help",
@@ -793,14 +796,17 @@ static const char* optInfo[] = {
 	" (required)"
 #endif
 	,
-	"number of bodies in the demo"
+	"number of bodies in the demo",
+	"output file for step time logging or stdin if no argument specified"
 };
 static const char* argInfo[] = {
 	0,
 	"integer",
+#ifndef HEADLESS
 	0,
+#endif
 	"integer",
-	"integer"
+	"file name"
 };
 
 static void printInfo(const char* prgName)
@@ -837,31 +843,35 @@ static int parseArgv(int argc, char* const* argv)
   {
 	switch (opt)
 	{
-	  case 'h':
+	case 'h':
 		return -1;
-	  case 'd':
+	case 'd':
 		args.demo = atoi(optarg);
 		break;
-	  case 'e':
+	case 'e':
 		args.headless = true;
 		break;
-	  case 's':
+	case 's':
 		args.stepLimit = true;
 		args.steps = strtoul(optarg, NULL, 10);
 		break;
-	  case 'b':
+	case 'b':
 		args.numBodies = strtoul(optarg, NULL, 10);
 		break;
-	  default:
+	case 'o':
+		args.log = true;
+		args.logFile = optarg;
+		break;
+	default:
 		return -1;
 	}
   }
 
   if (
 #ifndef HEADLESS
-  	args.headless &&
+	args.headless &&
 #endif
-  	!args.stepLimit
+	!args.stepLimit
   )
   {
 		return -1;
@@ -869,9 +879,36 @@ static int parseArgv(int argc, char* const* argv)
   return 0;
 }
 
+static FILE* openLogFile()
+{
+	FILE* logFile = NULL;
+
+	if (args.log)
+	{
+		logFile = args.logFile ? fopen(args.logFile, "w+") : stdout;
+		if (!logFile)
+		{
+			perror("File opening failed");
+			return NULL;
+		}
+	}
+	return logFile;
+}
+
+static void writeLogStepMs(FILE* logFile, double stepMs)
+{
+	if (args.log)
+	{
+		fprintf(logFile, "%.0f\n", stepMs);
+		fflush(logFile);
+	}
+}
+
 #ifndef HEADLESS
 static int runDemo()
 {
+	FILE* logFile = openLogFile();
+
 	glfwSetErrorCallback(glfwErrorCallback);
 
 	if (glfwInit() == 0)
@@ -1015,6 +1052,8 @@ static int runDemo()
 
 		double stepMs = (posStepTime - preStepTime) * 1000;
 
+		writeLogStepMs(logFile, stepMs);
+
 		stepMsAcum += stepMs;
 		if (maxStepMs < stepMs) maxStepMs = stepMs;
 		if (minStepMs > stepMs) minStepMs = stepMs;
@@ -1053,12 +1092,15 @@ static int runDemo()
 
 	glfwTerminate();
 
+	fclose(logFile);
+
 	return 0;
 }
 #endif
 
 static int runDemoHeadless()
 {
+	FILE* logFile = openLogFile();
 	double avgStepMs = 0.0;
 	double stepM2 = 0.0;
 	double maxStepMs = -INFINITY;
@@ -1072,6 +1114,8 @@ static int runDemoHeadless()
 
 		double stepMs = std::chrono::duration<double>(posStepTime - preStepTime).count() * 1000.0;
 
+		writeLogStepMs(logFile, stepMs);
+
 		if (maxStepMs < stepMs) maxStepMs = stepMs;
 		if (minStepMs > stepMs) minStepMs = stepMs;
 
@@ -1084,10 +1128,15 @@ static int runDemoHeadless()
 	double variance = (args.steps > 1) ? (stepM2 / (args.steps - 1)) : 0.0;
 	double stdStepMs = sqrt(variance);
 
-	printf("Mean step time: %.2f ms\n", avgStepMs);
-	printf("Std step time: %.2f ms\n", stdStepMs);
-	printf("Max step time: %.2f ms\n", maxStepMs);
-	printf("Min step time: %.2f ms\n", minStepMs);
+	if (!args.log)
+	{
+		printf("Mean step time: %.2f ms\n", avgStepMs);
+		printf("Std step time: %.2f ms\n", stdStepMs);
+		printf("Max step time: %.2f ms\n", maxStepMs);
+		printf("Min step time: %.2f ms\n", minStepMs);
+	}
+
+	fclose(logFile);
 
 	return 0;
 }
