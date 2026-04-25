@@ -87,8 +87,8 @@ void World::BroadPhase()
 				}
 				else
 				{
-					iter->second.Update(newArb.contacts, newArb.numContacts);
 					iter->second.updated = true;
+					iter->second.Update(newArb.contacts, newArb.numContacts);
 				}
 			}
 		}
