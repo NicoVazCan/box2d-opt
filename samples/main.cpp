@@ -57,7 +57,7 @@ namespace
 	Vec2 gravity(0.0f, -10.0f);
 	Vec2 noGravity(0.0f, 0.0f);
 
-	PrgArgs args = {0, false, false, false, 0, 64, NULL};
+	PrgArgs args = {0, false, false, false, 0, 200, NULL};
 
 	int numBodies = 0;
 	int numJoints = 0;
@@ -904,6 +904,14 @@ static void writeLogStepMs(FILE* logFile, double stepMs)
 	}
 }
 
+static void closeLogFile(FILE* logFile)
+{
+	if (args.log && logFile != stdout)
+	{
+		fclose(logFile);
+	}
+}
+
 #ifndef HEADLESS
 static int runDemo()
 {
@@ -1092,7 +1100,7 @@ static int runDemo()
 
 	glfwTerminate();
 
-	fclose(logFile);
+	closeLogFile(logFile);
 
 	return 0;
 }
@@ -1136,7 +1144,7 @@ static int runDemoHeadless()
 		printf("Min step time: %.2f ms\n", minStepMs);
 	}
 
-	fclose(logFile);
+	closeLogFile(logFile);
 
 	return 0;
 }
@@ -1152,13 +1160,13 @@ int main(int argc, char* const* argv)
 		return 0;
 	}
 
-	if (!(bodies = (Body*)calloc(args.numBodies, sizeof(Body))))
+	if (!(bodies = new Body[args.numBodies]))
 	{
 		printf("Error: Can not allocate bodies.\n");
 		return -1;
 	}
-
-	if (!(joints = (Joint*)calloc(args.numBodies, sizeof(Joint))))
+	size_t maxJoints = args.numBodies * (args.numBodies - 1) / 2;
+	if (!(joints = new Joint[maxJoints]))
 	{
 		printf("Error: Can not allocate joints.\n");
 		return -1;
@@ -1175,8 +1183,8 @@ int main(int argc, char* const* argv)
 		exitCode = runDemo();
 #endif
 
-	free(bodies);
-	free(joints);
+	delete[] bodies;
+	delete[] joints;
 
 	return exitCode;
 }
