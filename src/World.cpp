@@ -78,13 +78,14 @@ void World::BroadPhase()
 				ArbIter iter = bi->arbiters.find(bj);
 				if (iter == bi->arbiters.end())
 				{
-					bi->arbiters.insert(ArbPair(bj, newArb));
 					newArb.updated = true;
+					bi->arbiters.insert(ArbPair(bj, newArb));
+					
 				}
 				else
 				{
-					iter->second.Update(newArb.contacts, newArb.numContacts);
 					iter->second.updated = true;
+					iter->second.Update(newArb.contacts, newArb.numContacts);
 				}
 			}
 		}
