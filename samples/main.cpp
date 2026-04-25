@@ -658,7 +658,7 @@ static void Demo12(Body* b, Joint* j)
 	}
 }
 
-#define MAX_DEMOS 12
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 void (*demos[])(Body* b, Joint* j) = {Demo1, Demo2, Demo3, Demo4, Demo5, Demo6, Demo7, Demo8, Demo9, Demo10, Demo11, Demo12};
 const char* demoStrings[] = {
 	"Demo 1: A Single Box",
@@ -710,7 +710,7 @@ static void Keyboard(GLFWwindow* window, int key, int scancode, int action, int 
 	case '7':
 	case '8':
 	case '9':
-		if (mods & GLFW_MOD_SHIFT && 9 + key - GLFW_KEY_1 < MAX_DEMOS)
+		if (mods & GLFW_MOD_SHIFT && 9 + key - GLFW_KEY_1 < ARRAY_SIZE(demos))
 			InitDemo(9 + key - GLFW_KEY_1);
 		else
 			InitDemo(key - GLFW_KEY_1);
@@ -837,6 +837,7 @@ static void printInfo(const char* prgName)
 
 static int parseArgv(int argc, char* const* argv)
 {
+	const char* prgName = rindex(argv[0], '/') + 1;
 	int opt;
 
   while ((opt = getopt_long(argc, argv, opts, longOpts, NULL)) != -1)
@@ -844,9 +845,19 @@ static int parseArgv(int argc, char* const* argv)
 	switch (opt)
 	{
 	case 'h':
+		printInfo(prgName);
 		return -1;
 	case 'd':
-		args.demo = atoi(optarg);
+		{
+			int demo = atoi(optarg) - 1;
+			if (demo < ARRAY_SIZE(demos))
+				args.demo = demo;
+			else
+			{
+				printf("There is no \"%d\" demo; available demos: 1-%ld\n", demo, ARRAY_SIZE(demos));
+				return -1;
+			}
+		}
 		break;
 	case 'e':
 		args.headless = true;
@@ -863,6 +874,7 @@ static int parseArgv(int argc, char* const* argv)
 		args.logFile = optarg;
 		break;
 	default:
+		printInfo(prgName);
 		return -1;
 	}
   }
@@ -874,6 +886,7 @@ static int parseArgv(int argc, char* const* argv)
 	!args.stepLimit
   )
   {
+  	printInfo(prgName);
 		return -1;
   }
   return 0;
@@ -1151,14 +1164,10 @@ static int runDemoHeadless()
 
 int main(int argc, char* const* argv)
 {
-	const char* prgName = rindex(argv[0], '/') + 1;
 	int exitCode;
 
 	if (parseArgv(argc, argv) == -1)
-	{
-		printInfo(prgName);
 		return 0;
-	}
 
 	if (!(bodies = new Body[args.numBodies]))
 	{
