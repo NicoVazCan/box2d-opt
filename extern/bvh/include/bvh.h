@@ -3,6 +3,7 @@
 #include <array>
 #include <cassert>
 #include <vector>
+#include <cstdint>
 
 
 namespace bvh {
