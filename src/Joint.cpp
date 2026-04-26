@@ -34,6 +34,21 @@ void Joint::Set(Body* b1, Body* b2, const Vec2& anchor)
 
 void Joint::PreStep(float inv_dt)
 {
+	Vec2 b1InitVelocity, b1Velocity;
+	Vec2 b2InitVelocity, b2Velocity;
+	float b1InitAngularVelocity, b1AngularVelocity;
+	float b2InitAngularVelocity, b2AngularVelocity;
+
+	body1->lock.lock_shared();
+	b1InitVelocity = b1Velocity = body1->velocity;
+	b1InitAngularVelocity = b1AngularVelocity = body1->angularVelocity;
+	body1->lock.unlock_shared();
+
+	body2->lock.lock_shared();
+	b2InitVelocity = b2Velocity = body2->velocity;
+	b2InitAngularVelocity = b2AngularVelocity = body2->angularVelocity;
+	body2->lock.unlock_shared();
+
 	// Pre-compute anchors, mass matrix, and bias.
 	Mat22 Rot1(body1->rotation);
 	Mat22 Rot2(body2->rotation);
@@ -79,31 +94,48 @@ void Joint::PreStep(float inv_dt)
 	if (World::warmStarting)
 	{
 		// Apply accumulated impulse.
-		body1->velocity -= body1->invMass * P;
-		body1->angularVelocity -= body1->invI * Cross(r1, P);
+		b1Velocity -= body1->invMass * P;
+		b1AngularVelocity -= body1->invI * Cross(r1, P);
 
-		body2->velocity += body2->invMass * P;
-		body2->angularVelocity += body2->invI * Cross(r2, P);
+		b2Velocity += body2->invMass * P;
+		b2AngularVelocity += body2->invI * Cross(r2, P);
 	}
 	else
 	{
 		P.Set(0.0f, 0.0f);
 	}
+
+	body1->lock.lock();
+	body1->velocity -= b1InitVelocity;
+	body1->velocity += b1Velocity;
+	body1->angularVelocity -= b1InitAngularVelocity;
+	body1->angularVelocity += b1AngularVelocity;
+	body1->lock.unlock();
+
+	body2->lock.lock();
+	body2->velocity -= b2InitVelocity;
+	body2->velocity += b2Velocity;
+	body2->angularVelocity -= b2InitAngularVelocity;
+	body2->angularVelocity += b2AngularVelocity;
+	body2->lock.unlock();
 }
 
 void Joint::ApplyImpulse()
 {
-	Vec2 b1Velocity, b2Velocity;
-	float b1AngularVelocity, b2AngularVelocity;
-#pragma omp atomic read
-	b1Velocity.xy = body1->velocity.xy;
-#pragma omp atomic read
-	b2Velocity.xy = body2->velocity.xy;
+	Vec2 b1InitVelocity, b1Velocity;
+	Vec2 b2InitVelocity, b2Velocity;
+	float b1InitAngularVelocity, b1AngularVelocity;
+	float b2InitAngularVelocity, b2AngularVelocity;
 
-#pragma omp atomic read
-	b1AngularVelocity = body1->angularVelocity;
-#pragma omp atomic read
-	b2AngularVelocity = body2->angularVelocity;
+	body1->lock.lock_shared();
+	b1InitVelocity = b1Velocity = body1->velocity;
+	b1InitAngularVelocity = b1AngularVelocity = body1->angularVelocity;
+	body1->lock.unlock_shared();
+
+	body2->lock.lock_shared();
+	b2InitVelocity = b2Velocity = body2->velocity;
+	b2InitAngularVelocity = b2AngularVelocity = body2->angularVelocity;
+	body2->lock.unlock_shared();
 
     Vec2 dv = b2Velocity + Cross(b2AngularVelocity, r2) - b1Velocity - Cross(b1AngularVelocity, r1);
 
@@ -119,13 +151,17 @@ void Joint::ApplyImpulse()
 
 	P += impulse;
 
-#pragma omp atomic write
-	body1->velocity.xy = b1Velocity.xy;
-#pragma omp atomic write
-	body2->velocity.xy = b2Velocity.xy;
+	body1->lock.lock();
+	body1->velocity -= b1InitVelocity;
+	body1->velocity += b1Velocity;
+	body1->angularVelocity -= b1InitAngularVelocity;
+	body1->angularVelocity += b1AngularVelocity;
+	body1->lock.unlock();
 
-#pragma omp atomic write
-	body1->angularVelocity = b1AngularVelocity;
-#pragma omp atomic write
-	body2->angularVelocity = b2AngularVelocity;
+	body2->lock.lock();
+	body2->velocity -= b2InitVelocity;
+	body2->velocity += b2Velocity;
+	body2->angularVelocity -= b2InitAngularVelocity;
+	body2->angularVelocity += b2AngularVelocity;
+	body2->lock.unlock();
 }

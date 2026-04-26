@@ -15,6 +15,7 @@
 #include <map>
 #include "MathUtils.h"
 #include "Arbiter.h"
+#include "SharedLock.h"
 #include <bvh.h>
 
 struct Body
@@ -65,6 +66,8 @@ struct Body
 	std::map<Body*, Arbiter> arbiters;
 	bvh::index_t idxBVH;
 	int idxWorld;
+
+	SharedLock lock; 
 };
 
 #endif

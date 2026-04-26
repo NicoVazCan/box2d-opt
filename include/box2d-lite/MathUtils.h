@@ -16,7 +16,6 @@
 #include <float.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <stdint.h>
 
 const float k_pi = 3.14159265358979323846264f;
 
@@ -49,11 +48,7 @@ struct Vec2
 		return sqrtf(x * x + y * y);
 	}
 
-	union
-	{
-		struct { float x, y; };
-		uint64_t xy;
-	};
+	float x, y;
 };
 
 struct Mat22

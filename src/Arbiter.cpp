@@ -85,6 +85,21 @@ void Arbiter::PreStep(float inv_dt)
 	const float k_allowedPenetration = 0.01f;
 	float k_biasFactor = World::positionCorrection ? 0.2f : 0.0f;
 
+	Vec2 b1InitVelocity, b1Velocity;
+	Vec2 b2InitVelocity, b2Velocity;
+	float b1InitAngularVelocity, b1AngularVelocity;
+	float b2InitAngularVelocity, b2AngularVelocity;
+
+	body1->lock.lock_shared();
+	b1InitVelocity = b1Velocity = body1->velocity;
+	b1InitAngularVelocity = b1AngularVelocity = body1->angularVelocity;
+	body1->lock.unlock_shared();
+
+	body2->lock.lock_shared();
+	b2InitVelocity = b2Velocity = body2->velocity;
+	b2InitAngularVelocity = b2AngularVelocity = body2->angularVelocity;
+	body2->lock.unlock_shared();
+
 	for (int i = 0; i < numContacts; ++i)
 	{
 		Contact* c = contacts + i;
@@ -113,37 +128,51 @@ void Arbiter::PreStep(float inv_dt)
 			// Apply normal + friction impulse
 			Vec2 P = c->Pn * c->normal + c->Pt * tangent;
 
-			body1->velocity -= body1->invMass * P;
-			body1->angularVelocity -= body1->invI * Cross(r1, P);
+			b1Velocity -= body1->invMass * P;
+			b1AngularVelocity -= body1->invI * Cross(r1, P);
 
-			body2->velocity += body2->invMass * P;
-			body2->angularVelocity += body2->invI * Cross(r2, P);
+			b2Velocity += body2->invMass * P;
+			b2AngularVelocity += body2->invI * Cross(r2, P);
 		}
 	}
+
+	body1->lock.lock();
+	body1->velocity -= b1InitVelocity;
+	body1->velocity += b1Velocity;
+	body1->angularVelocity -= b1InitAngularVelocity;
+	body1->angularVelocity += b1AngularVelocity;
+	body1->lock.unlock();
+
+	body2->lock.lock();
+	body2->velocity -= b2InitVelocity;
+	body2->velocity += b2Velocity;
+	body2->angularVelocity -= b2InitAngularVelocity;
+	body2->angularVelocity += b2AngularVelocity;
+	body2->lock.unlock();
 }
 
 void Arbiter::ApplyImpulse()
 {
-	Body* b1 = body1;
-	Body* b2 = body2;
-	Vec2 b1Velocity, b2Velocity;
-	float b1AngularVelocity, b2AngularVelocity;
+	Vec2 b1InitVelocity, b1Velocity;
+	Vec2 b2InitVelocity, b2Velocity;
+	float b1InitAngularVelocity, b1AngularVelocity;
+	float b2InitAngularVelocity, b2AngularVelocity;
 
-#pragma omp atomic read
-	b1Velocity.xy = b1->velocity.xy;
-#pragma omp atomic read
-	b2Velocity.xy = b2->velocity.xy;
+	body1->lock.lock_shared();
+	b1InitVelocity = b1Velocity = body1->velocity;
+	b1InitAngularVelocity = b1AngularVelocity = body1->angularVelocity;
+	body1->lock.unlock_shared();
 
-#pragma omp atomic read
-	b1AngularVelocity = b1->angularVelocity;
-#pragma omp atomic read
-	b2AngularVelocity = b2->angularVelocity;
+	body2->lock.lock_shared();
+	b2InitVelocity = b2Velocity = body2->velocity;
+	b2InitAngularVelocity = b2AngularVelocity = body2->angularVelocity;
+	body2->lock.unlock_shared();
 
 	for (int i = 0; i < numContacts; ++i)
 	{
 		Contact* c = contacts + i;
-		c->r1 = c->position - b1->position;
-		c->r2 = c->position - b2->position;
+		c->r1 = c->position - body1->position;
+		c->r2 = c->position - body2->position;
 
 		// Relative velocity at contact
 		Vec2 dv = b2Velocity + Cross(b2AngularVelocity, c->r2) - b1Velocity - Cross(b1AngularVelocity, c->r1);
@@ -168,11 +197,11 @@ void Arbiter::ApplyImpulse()
 		// Apply contact impulse
 		Vec2 Pn = dPn * c->normal;
 
-		b1Velocity -= b1->invMass * Pn;
-		b1AngularVelocity -= b1->invI * Cross(c->r1, Pn);
+		b1Velocity -= body1->invMass * Pn;
+		b1AngularVelocity -= body1->invI * Cross(c->r1, Pn);
 
-		b2Velocity += b2->invMass * Pn;
-		b2AngularVelocity += b2->invI * Cross(c->r2, Pn);
+		b2Velocity += body2->invMass * Pn;
+		b2AngularVelocity += body2->invI * Cross(c->r2, Pn);
 
 		// Relative velocity at contact
 		dv = b2Velocity + Cross(b2AngularVelocity, c->r2) - b1Velocity - Cross(b1AngularVelocity, c->r1);
@@ -200,20 +229,24 @@ void Arbiter::ApplyImpulse()
 		// Apply contact impulse
 		Vec2 Pt = dPt * tangent;
 
-		b1Velocity -= b1->invMass * Pt;
-		b1AngularVelocity -= b1->invI * Cross(c->r1, Pt);
+		b1Velocity -= body1->invMass * Pt;
+		b1AngularVelocity -= body1->invI * Cross(c->r1, Pt);
 
-		b2Velocity += b2->invMass * Pt;
-		b2AngularVelocity += b2->invI * Cross(c->r2, Pt);
+		b2Velocity += body2->invMass * Pt;
+		b2AngularVelocity += body2->invI * Cross(c->r2, Pt);
 	}
 
-#pragma omp atomic write
-	b1->velocity.xy = b1Velocity.xy;
-#pragma omp atomic write
-	b2->velocity.xy = b2Velocity.xy;
+	body1->lock.lock();
+	body1->velocity -= b1InitVelocity;
+	body1->velocity += b1Velocity;
+	body1->angularVelocity -= b1InitAngularVelocity;
+	body1->angularVelocity += b1AngularVelocity;
+	body1->lock.unlock();
 
-#pragma omp atomic write
-	b1->angularVelocity = b1AngularVelocity;
-#pragma omp atomic write
-	b2->angularVelocity = b2AngularVelocity;
+	body2->lock.lock();
+	body2->velocity -= b2InitVelocity;
+	body2->velocity += b2Velocity;
+	body2->angularVelocity -= b2InitAngularVelocity;
+	body2->angularVelocity += b2AngularVelocity;
+	body2->lock.unlock();
 }
