@@ -17,6 +17,8 @@
 #include <string.h>
 #include <limits.h>
 #include <chrono>
+#include <stdint.h>
+#include <locale.h>
 
 #ifndef HEADLESS
 #include "imgui/imgui.h"
@@ -36,7 +38,7 @@ struct PrgArgs
 {
 	int demo;
 	bool headless, stepLimit, log;
-	unsigned long steps;
+	int64_t steps;
 	size_t numBodies;
 	const char* logFile;
 };
@@ -908,11 +910,11 @@ static FILE* openLogFile()
 	return logFile;
 }
 
-static void writeLogStepMs(FILE* logFile, double stepMs)
+static void writeLogStepNs(FILE* logFile, int64_t stepNs)
 {
 	if (args.log)
 	{
-		fprintf(logFile, "%.0f\n", stepMs);
+		fprintf(logFile, "%ld\n", stepNs);
 		fflush(logFile);
 	}
 }
@@ -991,15 +993,15 @@ static int runDemo()
 
 	const double infoRefreshSecs = 1.0;
 
-	unsigned long step = 0;
+	int64_t step = 0;
 
 	int frameCounter = 1;
 	double lastFrameTime;
 	double frameSecsAccum = 0.0;
-	double stepMsAcum = 0.0;
+	int64_t stepNsAcum = 0;
 
 	int avgFPS = 0;
-	double avgStepMs = 0.0, maxStepMs = -INFINITY, minStepMs = INFINITY;
+	int64_t avgStepNs = 0, maxStepNs = 0, minStepNs = INT64_MAX;
 
 	lastFrameTime = glfwGetTime();
 	while (!glfwWindowShouldClose(mainWindow))
@@ -1015,11 +1017,11 @@ static int runDemo()
 		if (frameSecsAccum >= infoRefreshSecs)
 		{
 			avgFPS = frameCounter / frameSecsAccum;
-			avgStepMs = stepMsAcum / frameCounter;
+			avgStepNs = stepNsAcum / frameCounter;
 
 			frameCounter = 1;
 			frameSecsAccum = 0.0;
-			stepMsAcum = 0.0;
+			stepNsAcum = 0;
 		}
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1052,13 +1054,13 @@ static int runDemo()
 		sprintf(buffer, "FPS: %2d", avgFPS);
 		DrawText(5, 185, buffer);
 		
-		sprintf(buffer, "World Step Time: %0.2f ms", avgStepMs);
+		sprintf(buffer, "World Step Time:     %'14ld ns", avgStepNs);
 		DrawText(5, 205, buffer);
 
-		sprintf(buffer, "World Max Step Time: %0.2f ms", maxStepMs);
+		sprintf(buffer, "World Max Step Time: %'14ld ns", maxStepNs);
 		DrawText(5, 225, buffer);
 
-		sprintf(buffer, "World Min Step Time: %0.2f ms", minStepMs);
+		sprintf(buffer, "World Min Step Time: %'14ld ns", minStepNs);
 		DrawText(5, 245, buffer);
 
 		sprintf(buffer, "Step: %lu", step);
@@ -1067,17 +1069,17 @@ static int runDemo()
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
 
-		double preStepTime = glfwGetTime();
+		auto preStepTime = std::chrono::high_resolution_clock::now();
 		world.Step(timeStep);
-		double posStepTime = glfwGetTime();
+		auto posStepTime = std::chrono::high_resolution_clock::now();
 
-		double stepMs = (posStepTime - preStepTime) * 1000;
+		int64_t stepNs = std::chrono::nanoseconds(posStepTime - preStepTime).count();
 
-		writeLogStepMs(logFile, stepMs);
+		writeLogStepNs(logFile, stepNs);
 
-		stepMsAcum += stepMs;
-		if (maxStepMs < stepMs) maxStepMs = stepMs;
-		if (minStepMs > stepMs) minStepMs = stepMs;
+		stepNsAcum += stepNs;
+		if (maxStepNs < stepNs) maxStepNs = stepNs;
+		if (minStepNs > stepNs) minStepNs = stepNs;
 
 		for (int i = 0; i < numBodies; ++i)
 			DrawBody(bodies + i);
@@ -1122,10 +1124,10 @@ static int runDemo()
 static int runDemoHeadless()
 {
 	FILE* logFile = openLogFile();
-	double avgStepMs = 0.0;
-	double stepM2 = 0.0;
-	double maxStepMs = -INFINITY;
-	double minStepMs = INFINITY;
+	int64_t avgStepNs = 0;
+	int64_t stepM2 = 0;
+	int64_t maxStepNs = 0;
+	int64_t minStepNs = INT64_MAX;
 
 	for (int step = 0; step < args.steps; ++step)
 	{
@@ -1133,28 +1135,28 @@ static int runDemoHeadless()
 		world.Step(timeStep);
 		auto posStepTime = std::chrono::high_resolution_clock::now();
 
-		double stepMs = std::chrono::duration<double>(posStepTime - preStepTime).count() * 1000.0;
+		int64_t stepNs = std::chrono::nanoseconds(posStepTime - preStepTime).count();
 
-		writeLogStepMs(logFile, stepMs);
+		writeLogStepNs(logFile, stepNs);
 
-		if (maxStepMs < stepMs) maxStepMs = stepMs;
-		if (minStepMs > stepMs) minStepMs = stepMs;
+		if (maxStepNs < stepNs) maxStepNs = stepNs;
+		if (minStepNs > stepNs) minStepNs = stepNs;
 
-		double delta = stepMs - avgStepMs;
-		avgStepMs += delta / (step + 1);
-		double delta2 = stepMs - avgStepMs;
+		int64_t delta = stepNs - avgStepNs;
+		avgStepNs += delta / (step + 1);
+		int64_t delta2 = stepNs - avgStepNs;
 		stepM2 += delta * delta2;
 	}
 
-	double variance = (args.steps > 1) ? (stepM2 / (args.steps - 1)) : 0.0;
-	double stdStepMs = sqrt(variance);
+	int64_t variance = (args.steps > 1) ? (stepM2 / (args.steps - 1)) : 0.0;
+	int64_t stdStepNs = sqrt(variance);
 
 	if (!args.log)
 	{
-		printf("Mean step time: %.2f ms\n", avgStepMs);
-		printf("Std step time: %.2f ms\n", stdStepMs);
-		printf("Max step time: %.2f ms\n", maxStepMs);
-		printf("Min step time: %.2f ms\n", minStepMs);
+		printf("Mean step time: %'14ld ns\n", avgStepNs);
+		printf("Std step time:  %'14ld ns\n", stdStepNs);
+		printf("Max step time:  %'14ld ns\n", maxStepNs);
+		printf("Min step time:  %'14ld ns\n", minStepNs);
 	}
 
 	closeLogFile(logFile);
@@ -1180,6 +1182,8 @@ int main(int argc, char* const* argv)
 		printf("Error: Can not allocate joints.\n");
 		return -1;
 	}
+
+	setlocale(LC_NUMERIC, "");
 
 	InitDemo(args.demo);
 
