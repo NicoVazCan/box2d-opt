@@ -1032,124 +1032,140 @@ static int runDemo()
 	int avgFPS = 0;
 	double avgStepMs = 0.0, maxStepMs = -INFINITY, minStepMs = INFINITY;
 
-	lastFrameTime = glfwGetTime();
-	while (!glfwWindowShouldClose(mainWindow))
+	bool running;
+
+#pragma omp parallel
 	{
-		if (args.stepLimit && step > args.steps)
-			break;
+#pragma omp master
+		running = !glfwWindowShouldClose(mainWindow);
+#pragma omp barrier
 
-		double currentFrameTime = glfwGetTime();
-		double frameSecs = currentFrameTime - lastFrameTime;
-		lastFrameTime = currentFrameTime;
-		frameSecsAccum += frameSecs;
-
-		if (frameSecsAccum >= infoRefreshSecs)
+		lastFrameTime = glfwGetTime();
+		while (running)
 		{
-			avgFPS = frameCounter / frameSecsAccum;
-			avgStepMs = stepMsAcum / frameCounter;
-
-			frameCounter = 1;
-			frameSecsAccum = 0.0;
-			stepMsAcum = 0.0;
-		}
-
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		ImGui_ImplOpenGL2_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-
-		// Globally position text
-		ImGui::SetNextWindowPos(ImVec2(10.0f, 10.0f));
-		ImGui::Begin("Overlay", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar);
-		ImGui::End();
-
-		DrawText(5, 5, demoStrings[demoIndex]);
-		DrawText(5, 35, "Keys: 1-9 Demos, Space to Launch the Bomb");
-
-		char buffer[64];
-		sprintf(buffer, "(A)ccumulation %s", World::accumulateImpulses ? "ON" : "OFF");
-		DrawText(5, 65, buffer);
-
-		sprintf(buffer, "(P)osition Correction %s", World::positionCorrection ? "ON" : "OFF");
-		DrawText(5, 95, buffer);
-
-		sprintf(buffer, "(W)arm Starting %s", World::warmStarting ? "ON" : "OFF");
-		DrawText(5, 125, buffer);
-
-		sprintf(buffer, "(G)ravity Enabled %s", world.gravity.y != 0.0f ? "ON" : "OFF");
-		DrawText(5, 155, buffer);
-
-		sprintf(buffer, "(D)raw BVH Tree Enabled %s", drawBVHTree ? "ON" : "OFF");
-		DrawText(5, 185, buffer);
-
-		sprintf(buffer, "FPS: %2d", avgFPS);
-		DrawText(5, 205, buffer);
-		
-		sprintf(buffer, "World Step Time: %0.2f ms", avgStepMs);
-		DrawText(5, 225, buffer);
-
-		sprintf(buffer, "World Max Step Time: %0.2f ms", maxStepMs);
-		DrawText(5, 245, buffer);
-
-		sprintf(buffer, "World Min Step Time: %0.2f ms", minStepMs);
-		DrawText(5, 265, buffer);
-
-		sprintf(buffer, "Step: %lu", step);
-		DrawText(5, 285, buffer);
-
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-
-		double preStepTime = glfwGetTime();
-		world.Step(timeStep);
-		double posStepTime = glfwGetTime();
-
-		double stepMs = (posStepTime - preStepTime) * 1000;
-
-		writeLogStepMs(logFile, stepMs);
-
-		stepMsAcum += stepMs;
-		if (maxStepMs < stepMs) maxStepMs = stepMs;
-		if (minStepMs > stepMs) minStepMs = stepMs;
-
-		for (int i = 0; i < numBodies; ++i)
-			DrawBody(bodies + i);
-
-		for (int i = 0; i < numJoints; ++i)
-			DrawJoint(joints + i);
-
-		if (drawBVHTree)
-			DrawNodeBVH(world.bodiesBVH, world.bodiesBVH.root());
-
-		glPointSize(4.0f);
-		glColor3f(1.0f, 0.0f, 0.0f);
-		glBegin(GL_POINTS);
-		std::map<Body*, Arbiter>::const_iterator iter;
-		for (int i = 0; i < (int)world.bodies.size(); ++i)
-		{
-			Body* bi = world.bodies[i];
-			for (iter = bi->arbiters.begin(); iter != bi->arbiters.end(); ++iter)
+			double currentFrame;
+			double preStepTime, posStepTime;
+#pragma omp master
 			{
-				const Arbiter& arbiter = iter->second;
-				for (int i = 0; i < arbiter.numContacts; ++i)
-				{
-					Vec2 p = arbiter.contacts[i].position;
-					glVertex2f(p.x, p.y);
-				}
+			double currentFrameTime = glfwGetTime();
+			double frameSecs = currentFrameTime - lastFrameTime;
+			lastFrameTime = currentFrameTime;
+			frameSecsAccum += frameSecs;
+
+			if (frameSecsAccum >= infoRefreshSecs)
+			{
+				avgFPS = frameCounter / frameSecsAccum;
+				avgStepMs = stepMsAcum / frameCounter;
+
+				frameCounter = 1;
+				frameSecsAccum = 0.0;
+				stepMsAcum = 0.0;
 			}
+
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+				ImGui_ImplOpenGL2_NewFrame();
+				ImGui_ImplGlfw_NewFrame();
+				ImGui::NewFrame();
+
+				// Globally position text
+				ImGui::SetNextWindowPos(ImVec2(10.0f, 10.0f));
+				ImGui::Begin("Overlay", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar);
+				ImGui::End();
+
+				DrawText(5, 5, demoStrings[demoIndex]);
+				DrawText(5, 35, "Keys: 1-9 Demos, Space to Launch the Bomb");
+
+				char buffer[64];
+				sprintf(buffer, "(A)ccumulation %s", World::accumulateImpulses ? "ON" : "OFF");
+				DrawText(5, 65, buffer);
+
+				sprintf(buffer, "(P)osition Correction %s", World::positionCorrection ? "ON" : "OFF");
+				DrawText(5, 95, buffer);
+
+				sprintf(buffer, "(W)arm Starting %s", World::warmStarting ? "ON" : "OFF");
+				DrawText(5, 125, buffer);
+
+				sprintf(buffer, "(G)ravity Enabled %s", world.gravity.y != 0.0f ? "ON" : "OFF");
+				DrawText(5, 155, buffer);
+
+				sprintf(buffer, "FPS: %2d", avgFPS);
+				DrawText(5, 205, buffer);
+				
+				sprintf(buffer, "World Step Time: %0.2f ms", avgStepMs);
+				DrawText(5, 225, buffer);
+
+				sprintf(buffer, "World Max Step Time: %0.2f ms", maxStepMs);
+				DrawText(5, 245, buffer);
+
+				sprintf(buffer, "World Min Step Time: %0.2f ms", minStepMs);
+				DrawText(5, 265, buffer);
+
+				sprintf(buffer, "Step: %lu", step);
+				DrawText(5, 285, buffer);
+
+				glMatrixMode(GL_MODELVIEW);
+				glLoadIdentity();
+
+				preStepTime = glfwGetTime();
+			}
+			world.Step(timeStep);
+#pragma omp master
+			{
+				posStepTime = glfwGetTime();
+
+				double stepMs = (posStepTime - preStepTime) * 1000;
+
+				writeLogStepMs(logFile, stepMs);
+
+				stepMsAcum += stepMs;
+				if (maxStepMs < stepMs) maxStepMs = stepMs;
+				if (minStepMs > stepMs) minStepMs = stepMs;
+
+				for (int i = 0; i < numBodies; ++i)
+					DrawBody(bodies + i);
+
+				for (int i = 0; i < numJoints; ++i)
+					DrawJoint(joints + i);
+
+				if (drawBVHTree)
+					DrawNodeBVH(world.bodiesBVH, world.bodiesBVH.root());
+
+				glPointSize(4.0f);
+				glColor3f(1.0f, 0.0f, 0.0f);
+				glBegin(GL_POINTS);
+				std::map<Body*, Arbiter>::const_iterator iter;
+				for (int i = 0; i < (int)world.bodies.size(); ++i)
+				{
+					Body* bi = world.bodies[i];
+					for (iter = bi->arbiters.begin(); iter != bi->arbiters.end(); ++iter)
+					{
+						const Arbiter& arbiter = iter->second;
+						for (int i = 0; i < arbiter.numContacts; ++i)
+						{
+							Vec2 p = arbiter.contacts[i].position;
+							glVertex2f(p.x, p.y);
+						}
+					}
+				}
+				glEnd();
+				glPointSize(1.0f);
+
+				ImGui::Render();
+				ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+
+				glfwPollEvents();
+				glfwSwapBuffers(mainWindow);
+
+				frameCounter++;
+				step++;
+
+				running = !(args.stepLimit && step > args.steps) && !glfwWindowShouldClose(mainWindow);
+			}
+#pragma omp barrier
 		}
-		glEnd();
-		glPointSize(1.0f);
 
-		ImGui::Render();
-		ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
 
-		glfwPollEvents();
-		glfwSwapBuffers(mainWindow);
-
-		frameCounter++;
-		step++;
 	}
 
 	glfwTerminate();
@@ -1168,23 +1184,35 @@ static int runDemoHeadless()
 	double maxStepMs = -INFINITY;
 	double minStepMs = INFINITY;
 
-	for (int step = 0; step < args.steps; ++step)
+	std::chrono::time_point<std::chrono::high_resolution_clock> preStepTime, posStepTime;
+
+#pragma omp parallel
 	{
-		auto preStepTime = std::chrono::high_resolution_clock::now();
-		world.Step(timeStep);
-		auto posStepTime = std::chrono::high_resolution_clock::now();
+		for (int step = 0; step < args.steps; ++step)
+		{
+#pragma omp master
+			{
+				preStepTime = std::chrono::high_resolution_clock::now();
+			}
+			world.Step(timeStep);
+#pragma omp master
+			{
+				posStepTime = std::chrono::high_resolution_clock::now();
 
-		double stepMs = std::chrono::duration<double>(posStepTime - preStepTime).count() * 1000.0;
+				double stepMs = std::chrono::duration<double>(posStepTime - preStepTime).count() * 1000.0;
 
-		writeLogStepMs(logFile, stepMs);
+				writeLogStepMs(logFile, stepMs);
 
-		if (maxStepMs < stepMs) maxStepMs = stepMs;
-		if (minStepMs > stepMs) minStepMs = stepMs;
+				if (maxStepMs < stepMs) maxStepMs = stepMs;
+				if (minStepMs > stepMs) minStepMs = stepMs;
 
-		double delta = stepMs - avgStepMs;
-		avgStepMs += delta / (step + 1);
-		double delta2 = stepMs - avgStepMs;
-		stepM2 += delta * delta2;
+				double delta = stepMs - avgStepMs;
+				avgStepMs += delta / (step + 1);
+				double delta2 = stepMs - avgStepMs;
+				stepM2 += delta * delta2;
+			}
+#pragma omp barrier
+		}
 	}
 
 	double variance = (args.steps > 1) ? (stepM2 / (args.steps - 1)) : 0.0;

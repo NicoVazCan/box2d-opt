@@ -56,7 +56,7 @@ void World::BroadPhase()
 {
 	std::vector<bvh::index_t> query;
 
-#pragma omp parallel for private(query) shared(bodies, bodiesBVH) schedule(dynamic,512) if(bodies.size() >= 512)
+#pragma omp for private(query) schedule(guided, 512) nowait
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* bi = bodies[i];
@@ -103,18 +103,20 @@ void World::Step(float dt)
 	BroadPhase();
 
 	// Integrate forces.
+#pragma omp for
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* b = bodies[i];
 
-		if (b->invMass == 0.0f)
-			continue;
-
-		b->velocity += dt * (gravity + b->invMass * b->force);
-		b->angularVelocity += dt * b->invI * b->torque;
+		if (b->invMass != 0.0f)
+		{
+			b->velocity += dt * (gravity + b->invMass * b->force);
+			b->angularVelocity += dt * b->invI * b->torque;
+		}
 	}
 
 	// Perform pre-steps.
+#pragma omp for schedule(guided, 512)
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* bi = bodies[i];
@@ -133,17 +135,16 @@ void World::Step(float dt)
 			}
 		}
 	}
-
+#pragma omp for
 	for (int i = 0; i < (int)joints.size(); ++i)
 	{
 		joints[i]->PreStep(inv_dt);	
 	}
 
 	// Perform iterations
-#pragma omp parallel shared(bodies) if(bodies.size() >= 512)
 	for (int i = 0; i < iterations; ++i)
 	{
-#pragma omp for private(i) schedule(dynamic, 512)
+#pragma omp for private(i) schedule(guided, 512)
 		for (int j = 0; j < (int)bodies.size(); ++j)
 		{
 			Body* bi = bodies[j];
@@ -152,7 +153,7 @@ void World::Step(float dt)
 				arb->second.ApplyImpulse();
 			}
 		}
-#pragma omp for private(i) schedule(dynamic, 512)
+#pragma omp for private(i)
 		for (int j = 0; j < (int)joints.size(); ++j)
 		{
 			joints[j]->ApplyImpulse();
@@ -160,6 +161,7 @@ void World::Step(float dt)
 	}
 
 	// Integrate Velocities
+#pragma omp for
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* b = bodies[i];
@@ -169,7 +171,12 @@ void World::Step(float dt)
 
 		b->force.Set(0.0f, 0.0f);
 		b->torque = 0.0f;
+	}
 
+#pragma omp single
+	for (int i = 0; i < (int)bodies.size(); ++i)
+	{
+		Body* b = bodies[i];
 		bodiesBVH.move(b->idxBVH, b->GetAABB());
 	}
 }
