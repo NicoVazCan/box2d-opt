@@ -5,14 +5,16 @@
 
 namespace {
 // fixed size binary heap implementation
-template <typename type_t, size_t c_size>
+template <typename type_t>
 struct bin_heap_t {
 
   // index of the root node
   // to simplify the implementation, heap_ is base 1 (index 0 unused).
   static const size_t c_root = 1;
 
-  bin_heap_t() : index_(c_root) {}
+  bin_heap_t() : index_(c_root) {
+    heap_.resize(1);
+  }
 
   // pop the current best node in the heap (root node)
   type_t pop() {
@@ -29,21 +31,22 @@ struct bin_heap_t {
 
   // push a new node into the heap and make rebalanced tree
   void push(type_t node) {
-    assert(!full());
     // insert node into end of list
     size_t i = index_++;
-    heap_[i] = node;
+
+    if (i >= heap_.size()) {
+      assert(i == heap_.size());
+      heap_.push_back(node);
+    } else {
+      heap_[i] = node;
+    }
+    
     bubble_up(i);
   }
 
   // return true if the heap is empty
   bool empty() const {
     return index_ <= 1;
-  }
-
-  // return true if the heap is full
-  bool full() const {
-    return index_ > c_size;
   }
 
   // number of nodes currently in the heap
@@ -70,7 +73,7 @@ struct bin_heap_t {
   }
 
 protected:
-  std::array<type_t, c_size + 1> heap_;
+  std::vector<type_t> heap_;
   size_t index_;
 
   // check an index points to a valid node
@@ -253,7 +256,7 @@ index_t bvh_t::_find_best_sibling(const aabb_t &aabb) const {
     }
   };
   // XXX: warning, fixed size here
-  bin_heap_t<search_t, 1024> pqueue;
+  bin_heap_t<search_t> pqueue;
 
   if (_root != invalid_index) {
     pqueue.push(search_t{ _root, 0.f });
@@ -354,20 +357,25 @@ void bvh_t::move(index_t index, const aabb_t &aabb) {
 }
 
 void bvh_t::_free_all() {
+  size_t n_nodes = _nodes.size();
   _free_list = 0;
-  for (index_t i = 0; i < _max_nodes; ++i) {
+  for (index_t i = 0; i < n_nodes; ++i) {
     _get(i).child[0] = i + 1;
     _get(i).child[1] = invalid_index;
     _get(i).parent = invalid_index;
   }
-  // mark the end of the list of free nodes
-  _get(_max_nodes - 1).child[0] = invalid_index;
-  _get(_max_nodes - 1).child[1] = invalid_index;
-  _get(_max_nodes - 1).parent = invalid_index;
   _root = invalid_index;
 }
 
 index_t bvh_t::_new_node() {
+  if (_free_list >= _nodes.size()) {
+    assert(_free_list == _nodes.size());
+    node_t new_node;
+    new_node.child[0] = _free_list + 1;
+    new_node.child[1] = invalid_index;
+    new_node.parent = invalid_index;
+    _nodes.push_back(new_node);
+  }
   index_t out = _free_list;
   assert(out != invalid_index);
   _free_list = get(_free_list).child[0];
