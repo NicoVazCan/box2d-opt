@@ -68,7 +68,7 @@ namespace
 
 	int width = 1280;
 	int height = 720;
-	float zoom = 30.0f;
+	float zoom = 10.0f;
 	float pan_y = 8.0f;
 	float pan_x = 0.0f;
 	bool dragging = false;
@@ -596,6 +596,7 @@ static void Demo11(Body* b, Joint* j)
 	world.gravity = noGravity;
 }
 
+#define NUM_BODIES_ROPE 70
 static void Demo12(Body* b, Joint* j)
 {
 	b->Set(Vec2(200.0f, 1.0f), FLT_MAX);
@@ -627,9 +628,7 @@ static void Demo12(Body* b, Joint* j)
 	float softness = 1.0f / (d + timeStep * k);
 	float biasFactor = timeStep * k / (d + timeStep * k);
 
-	const int numBodiesRope = 70;
-
-	int numRopes = (args.numBodies - 1) / numBodiesRope;
+	int numRopes = (args.numBodies - 1) / NUM_BODIES_ROPE;
 	numRopes = numRopes == 0 ? 1 : numRopes;
 
 	const float ropeXOffset = 1.0f, ropeYOffset = 0.2f;
@@ -640,7 +639,7 @@ static void Demo12(Body* b, Joint* j)
 		const float xOffset = (ir - (numRopes / 2)) * ropeXOffset;;
 		const float y = ropeInitY - ropeYOffset * (numRopes - ir);
 
-		for (int ib = 0; ib < numBodiesRope; ++ib)
+		for (int ib = 0; ib < NUM_BODIES_ROPE; ++ib)
 		{
 			Vec2 x(xOffset + 0.5f + ib * 0.5f, y);
 			b->Set(Vec2(0.4f, 0.1f), mass);
@@ -661,6 +660,11 @@ static void Demo12(Body* b, Joint* j)
 			++numJoints;
 		}
 	}
+}
+static size_t getMaxUsedJoints() {
+	size_t numRopes = (args.numBodies - 1) / NUM_BODIES_ROPE;
+	size_t numJoinsRope = NUM_BODIES_ROPE;
+	return numJoinsRope * numRopes;
 }
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
@@ -828,9 +832,7 @@ static void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
 static const struct option longOpts[] = {
 	{"help", 			no_argument, 		0, 'h'},
 	{"demo", 			required_argument, 	0, 'd'},
-#ifndef HEADLESS
 	{"headless", 	no_argument, 			0, 'e'},
-#endif
 	{"steps", 		required_argument, 		0, 's'},
 	{"bodies", 		required_argument, 		0, 'b'},
 	{"output", 		optional_argument, 		0, 'o'},
@@ -839,9 +841,7 @@ static const struct option longOpts[] = {
 static const char* opts = (
 	"h"
 	"d:"
-#ifndef HEADLESS
 	"e"
-#endif
 	"s:"
 	"b:"
 	"o::"
@@ -849,23 +849,15 @@ static const char* opts = (
 static const char* optInfo[] = {
 	"display this help",
 	"demo number",
-#ifndef HEADLESS
 	"enable headless mode, -s or --step is required",
-#endif
-	"exit when the specified number of frames is exceeded"
-#ifdef HEADLESS
-	" (required)"
-#endif
-	,
+	"exit when the specified number of frames is exceeded",
 	"number of bodies in the demo",
 	"output file for step time logging or stdin if no argument specified"
 };
 static const char* argInfo[] = {
 	0,
 	"integer",
-#ifndef HEADLESS
 	0,
-#endif
 	"integer",
 	"file name"
 };
@@ -928,7 +920,16 @@ static int parseArgv(int argc, char* const* argv)
 		args.steps = strtoul(optarg, NULL, 10);
 		break;
 	case 'b':
-		args.numBodies = strtoul(optarg, NULL, 10);
+		{
+			size_t bodiesArg = strtoul(optarg, NULL, 10);
+			if (bodiesArg > args.numBodies) {
+				args.numBodies = bodiesArg;
+			} else {
+				printf("Specified body number %lu is smaller than the minimum of %lu",
+					bodiesArg, args.numBodies);
+				return -1;
+			}
+		}
 		break;
 	case 'o':
 		args.log = true;
@@ -1233,19 +1234,15 @@ int main(int argc, char* const* argv)
 	if (parseArgv(argc, argv) == -1)
 		return 0;
 
-	if (!(bodies = new Body[args.numBodies]))
-	{
-		printf("Error: Can not allocate bodies.\n");
-		return -1;
-	}
-	size_t maxJoints = args.numBodies * (args.numBodies - 1) / 2;
-	if (!(joints = new Joint[maxJoints]))
-	{
-		printf("Error: Can not allocate joints.\n");
-		return -1;
-	}
-
 	setlocale(LC_NUMERIC, "");
+
+	const size_t&& sizeofMB = 1024 * 1024;
+	printf("Allocated bodies: %'lu MB\n", args.numBodies * sizeof(Body) / sizeofMB);
+	bodies = new Body[args.numBodies];
+
+	size_t maxJoints = getMaxUsedJoints();
+	printf("Allocated joints: %'lu MB\n", maxJoints * sizeof(Joint) / sizeofMB);
+	joints = new Joint[maxJoints];
 
 	InitDemo(args.demo);
 
