@@ -70,6 +70,9 @@ namespace
 	int height = 720;
 	float zoom = 30.0f;
 	float pan_y = 8.0f;
+	float pan_x = 0.0f;
+	bool dragging = false;
+	double lastMouseX = 0.0, lastMouseY = 0.0;
 
 	World world(gravity, iterations);
 }
@@ -756,13 +759,69 @@ static void Reshape(GLFWwindow*, int w, int h)
 	if (width >= height)
 	{
 		// aspect >= 1, set the height from -1 to 1, with larger width
-		glOrtho(-zoom * aspect, zoom * aspect, -zoom + pan_y, zoom + pan_y, -1.0, 1.0);
+		glOrtho(-zoom * aspect + pan_x, zoom * aspect + pan_x,
+			-zoom + pan_y, zoom + pan_y,
+			-1.0, 1.0);
 	}
 	else
 	{
 		// aspect < 1, set the width to -1 to 1, with larger height
-		glOrtho(-zoom, zoom, -zoom / aspect + pan_y, zoom / aspect + pan_y, -1.0, 1.0);
+		glOrtho(-zoom + pan_x, zoom + pan_x,
+			-zoom / aspect + pan_y, zoom / aspect + pan_y,
+			-1.0, 1.0);
 	}
+}
+
+static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    float zoomFactor = 1.1f;
+
+    if (yoffset > 0)
+        zoom /= zoomFactor; // zoom in
+    else
+        zoom *= zoomFactor; // zoom out
+
+    if (zoom < 0.1f) zoom = 0.1f;
+    if (zoom > 100.0f) zoom = 100.0f;
+
+    Reshape(window, width, height);
+}
+
+static void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+    if (button == GLFW_MOUSE_BUTTON_LEFT)
+    {
+        if (action == GLFW_PRESS)
+        {
+            dragging = true;
+            glfwGetCursorPos(window, &lastMouseX, &lastMouseY);
+        }
+        else if (action == GLFW_RELEASE)
+        {
+            dragging = false;
+        }
+    }
+}
+
+static void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
+{
+    if (!dragging)
+        return;
+
+    double dx = xpos - lastMouseX;
+    double dy = ypos - lastMouseY;
+
+    lastMouseX = xpos;
+    lastMouseY = ypos;
+
+    float aspect = float(width) / float(height);
+
+    float scale = zoom / height * 2.0f;
+
+    pan_x -= dx * scale;
+    pan_y += dy * scale;
+
+    Reshape(window, width, height);
 }
 #endif
 
@@ -962,6 +1021,9 @@ static int runDemo()
 	glfwSwapInterval(1);
 	glfwSetWindowSizeCallback(mainWindow, Reshape);
 	glfwSetKeyCallback(mainWindow, Keyboard);
+	glfwSetScrollCallback(mainWindow, ScrollCallback);
+	glfwSetMouseButtonCallback(mainWindow, MouseButtonCallback);
+	glfwSetCursorPosCallback(mainWindow, CursorPosCallback);
 
 	float xscale, yscale;
 	glfwGetWindowContentScale(mainWindow, &xscale, &yscale);
