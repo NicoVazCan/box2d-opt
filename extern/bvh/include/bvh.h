@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <vector>
 #include <cassert>
 #include <vector>
 #include <cstdint>
@@ -211,10 +212,8 @@ protected:
   // add a node to the free list
   void _free_node(index_t index);
 
-  static const uint32_t _max_nodes = 1024 * 32;
-
   // free and taken bvh nodes
-  std::array<node_t, _max_nodes> _nodes;
+  std::vector<node_t> _nodes;
   // start index of the free list
   index_t _free_list;
   // root node of the bvh
