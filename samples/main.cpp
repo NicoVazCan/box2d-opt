@@ -45,6 +45,12 @@ struct PrgArgs
 	const char* logFile;
 };
 
+#define MIN_NUM_BODIES 200
+#define MIN_NUM_JOINTS 100
+#define NUM_BODIES_MARGIN 10
+
+#define MAX(ln, rn) ((ln) > (rn) ? (ln) : (rn))
+
 namespace
 {
 #ifndef HEADLESS
@@ -61,7 +67,9 @@ namespace
 	Vec2 gravity(0.0f, -10.0f);
 	Vec2 noGravity(0.0f, 0.0f);
 
-	PrgArgs args = {0, false, false, false, 0, 200, NULL};
+	int maxBodies, maxJoints;
+
+	PrgArgs args = {0, false, false, false, 0, MIN_NUM_BODIES - NUM_BODIES_MARGIN, NULL};
 
 	int numBodies = 0;
 	int numJoints = 0;
@@ -70,8 +78,11 @@ namespace
 
 	int width = 1280;
 	int height = 720;
-	float zoom = 30.0f;
+	float zoom = 10.0f;
 	float pan_y = 8.0f;
+	float pan_x = 0.0f;
+	bool dragging = false;
+	double lastMouseX = 0.0, lastMouseY = 0.0;
 
 	bool drawBVHTree = false;
 
@@ -166,6 +177,12 @@ void DrawNodeBVH(const bvh::bvh_t &tree, const bvh::node_t &node)
 }
 #endif
 
+#define ASSERT_BOUNDS \
+do { \
+	assert(numBodies <= maxBodies); \
+ 	assert(numJoints <= maxJoints); \
+} while (false)
+
 static void LaunchBomb()
 {
 	if (!bomb)
@@ -174,7 +191,7 @@ static void LaunchBomb()
 		bomb->Set(Vec2(1.0f, 1.0f), 50.0f);
 		bomb->friction = 0.2f;
 		world.Add(bomb);
-		++numBodies;
+		numBodies++; ASSERT_BOUNDS;
 	}
 
 	bomb->position.Set(Random(-15.0f, 15.0f), 15.0f);
@@ -184,22 +201,32 @@ static void LaunchBomb()
 }
 
 // Single box
-static void Demo1(Body* b, Joint* j)
+static int Demo1(Body* b, Joint* j)
 {
+	const int&& usedBodies = 2 + 1;
+	const int&& usedJoints = 0;
+	if (usedBodies > maxBodies || usedJoints > maxJoints) return -1;
+
 	b->Set(Vec2(100.0f, 20.0f), FLT_MAX);
 	b->position.Set(0.0f, -0.5f * b->width.y);
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	b->Set(Vec2(1.0f, 1.0f), 200.0f);
 	b->position.Set(0.0f, 4.0f);
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
+
+	return 0;
 }
 
 // A simple pendulum
-static void Demo2(Body* b, Joint* j)
+static int Demo2(Body* b, Joint* j)
 {
+	const int&& usedBodies = 2 + 1;
+	const int&& usedJoints = 1;
+	if (usedBodies > maxBodies || usedJoints > maxJoints) return -1;
+
 	Body* b1 = b + 0;
 	b1->Set(Vec2(100.0f, 20.0f), FLT_MAX);
 	b1->friction = 0.2f;
@@ -214,49 +241,55 @@ static void Demo2(Body* b, Joint* j)
 	b2->rotation = 0.0f;
 	world.Add(b2);
 
-	numBodies += 2;
+	numBodies += 2; ASSERT_BOUNDS;
 
 	j->Set(b1, b2, Vec2(0.0f, 11.0f));
 	world.Add(j);
 
-	numJoints += 1;
+	numJoints += 1; ASSERT_BOUNDS;
+
+	return 0;
 }
 
 // Varying friction coefficients
-static void Demo3(Body* b, Joint* j)
+static int Demo3(Body* b, Joint* j)
 {
+	const int&& usedBodies = 7 + 1;
+	const int&& usedJoints = 0;
+	if (usedBodies > maxBodies || usedJoints > maxJoints) return -1;
+
 	b->Set(Vec2(100.0f, 20.0f), FLT_MAX);
 	b->position.Set(0.0f, -0.5f * b->width.y);
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	b->Set(Vec2(13.0f, 0.25f), FLT_MAX);
 	b->position.Set(-2.0f, 11.0f);
 	b->rotation = -0.25f;
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	b->Set(Vec2(0.25f, 1.0f), FLT_MAX);
 	b->position.Set(5.25f, 9.5f);
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	b->Set(Vec2(13.0f, 0.25f), FLT_MAX);
 	b->position.Set(2.0f, 7.0f);
 	b->rotation = 0.25f;
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	b->Set(Vec2(0.25f, 1.0f), FLT_MAX);
 	b->position.Set(-5.25f, 5.5f);
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	b->Set(Vec2(13.0f, 0.25f), FLT_MAX);
 	b->position.Set(-2.0f, 3.0f);
 	b->rotation = -0.25f;
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	float friction[5] = {0.75f, 0.5f, 0.35f, 0.1f, 0.0f};
 	for (int i = 0; i < 5; ++i)
@@ -265,19 +298,25 @@ static void Demo3(Body* b, Joint* j)
 		b->friction = friction[i];
 		b->position.Set(-7.5f + 2.0f * i, 14.0f);
 		world.Add(b);
-		++b; ++numBodies;
+		++b; numBodies++; ASSERT_BOUNDS;
 	}
+
+	return 0;
 }
 
 // A vertical stack
-static void Demo4(Body* b, Joint* j)
+static int Demo4(Body* b, Joint* j)
 {
+	const int&& usedBodies = 1 + 10 + 1;
+	const int&& usedJoints = 0;
+	if (usedBodies > maxBodies || usedJoints > maxJoints) return -1;
+
 	b->Set(Vec2(100.0f, 20.0f), FLT_MAX);
 	b->friction = 0.2f;
 	b->position.Set(0.0f, -0.5f * b->width.y);
 	b->rotation = 0.0f;
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	for (int i = 0; i < 10; ++i)
 	{
@@ -286,19 +325,25 @@ static void Demo4(Body* b, Joint* j)
 		float x = Random(-0.1f, 0.1f);
 		b->position.Set(x, 0.51f + 1.05f * i);
 		world.Add(b);
-		++b; ++numBodies;
+		++b; numBodies++; ASSERT_BOUNDS;
 	}
+
+	return 0;
 }
 
 // A pyramid
-static void Demo5(Body* b, Joint* j)
+static int Demo5(Body* b, Joint* j)
 {
+	const int&& usedBodies = 1 + 12 * 12 + 1;
+	const int&& usedJoints = 0;
+	if (usedBodies > maxBodies || usedJoints > maxJoints) return -1;
+
 	b->Set(Vec2(100.0f, 20.0f), FLT_MAX);
 	b->friction = 0.2f;
 	b->position.Set(0.0f, -0.5f * b->width.y);
 	b->rotation = 0.0f;
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	Vec2 x(-6.0f, 0.75f);
 	Vec2 y;
@@ -313,7 +358,7 @@ static void Demo5(Body* b, Joint* j)
 			b->friction = 0.2f;
 			b->position = y;
 			world.Add(b);
-			++b; ++numBodies;
+			++b; numBodies++; ASSERT_BOUNDS;
 
 			y += Vec2(1.125f, 0.0f);
 		}
@@ -321,11 +366,17 @@ static void Demo5(Body* b, Joint* j)
 		//x += Vec2(0.5625f, 1.125f);
 		x += Vec2(0.5625f, 2.0f);
 	}
+
+	return 0;
 }
 
 // A teeter
-static void Demo6(Body* b, Joint* j)
+static int Demo6(Body* b, Joint* j)
 {
+	const int&& usedBodies = 5 + 1;
+	const int&& usedJoints = 1;
+	if (usedBodies > maxBodies || usedJoints > maxJoints) return -1;
+
 	Body* b1 = b + 0;
 	b1->Set(Vec2(100.0f, 20.0f), FLT_MAX);
 	b1->position.Set(0.0f, -0.5f * b1->width.y);
@@ -351,23 +402,29 @@ static void Demo6(Body* b, Joint* j)
 	b5->position.Set(5.5f, 15.0f);
 	world.Add(b5);
 
-	numBodies += 5;
+	numBodies += 5; ASSERT_BOUNDS;
 
 	j->Set(b1, b2, Vec2(0.0f, 1.0f));
 	world.Add(j);
 
-	numJoints += 1;
+	numJoints += 1; ASSERT_BOUNDS;
+
+	return 0;
 }
 
 // A suspension bridge
-static void Demo7(Body* b, Joint* j)
+static int Demo7(Body* b, Joint* j)
 {
+	const int&& usedBodies = 1 + 15 + 1;
+	const int&& usedJoints = 15 + 1;
+	if (usedBodies > maxBodies || usedJoints > maxJoints) return -1;
+
 	b->Set(Vec2(100.0f, 20.0f), FLT_MAX);
 	b->friction = 0.2f;
 	b->position.Set(0.0f, -0.5f * b->width.y);
 	b->rotation = 0.0f;
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	const int numPlanks = 15;
 	float mass = 50.0f;
@@ -378,7 +435,7 @@ static void Demo7(Body* b, Joint* j)
 		b->friction = 0.2f;
 		b->position.Set(-8.5f + 1.25f * i, 5.0f);
 		world.Add(b);
-		++b; ++numBodies;
+		++b; numBodies++; ASSERT_BOUNDS;
 	}
 
 	// Tuning
@@ -405,29 +462,35 @@ static void Demo7(Body* b, Joint* j)
 		j->biasFactor = biasFactor;
 
 		world.Add(j);
-		++j; ++numJoints;
+		++j; numJoints++; ASSERT_BOUNDS;
 	}
 
 	j->Set(bodies + numPlanks, bodies, Vec2(-9.125f + 1.25f * numPlanks, 5.0f));
 	j->softness = softness;
 	j->biasFactor = biasFactor;
 	world.Add(j);
-	++j; ++numJoints;
+	++j; numJoints++; ASSERT_BOUNDS;
+
+	return 0;
 }
 
 // Dominos
-static void Demo8(Body* b, Joint* j)
+static int Demo8(Body* b, Joint* j)
 {
+	const int&& usedBodies = 1 * 2 + 10 + 1 * 3 + 1 + 1 + 1 + 1;
+	const int&& usedJoints = 1 + 1 + 1 + 1;
+	if (usedBodies > maxBodies || usedJoints > maxJoints) return -1;
+
 	Body* b1 = b;
 	b->Set(Vec2(100.0f, 20.0f), FLT_MAX);
 	b->position.Set(0.0f, -0.5f * b->width.y);
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	b->Set(Vec2(12.0f, 0.5f), FLT_MAX);
 	b->position.Set(-1.5f, 10.0f);
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	for (int i = 0; i < 10; ++i)
 	{
@@ -435,66 +498,72 @@ static void Demo8(Body* b, Joint* j)
 		b->position.Set(-6.0f + 1.0f * i, 11.125f);
 		b->friction = 0.1f;
 		world.Add(b);
-		++b; ++numBodies;
+		++b; numBodies++; ASSERT_BOUNDS;
 	}
 
 	b->Set(Vec2(14.0f, 0.5f), FLT_MAX);
 	b->position.Set(1.0f, 6.0f);
 	b->rotation = 0.3f;
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	Body* b2 = b;
 	b->Set(Vec2(0.5f, 3.0f), FLT_MAX);
 	b->position.Set(-7.0f, 4.0f);
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	Body* b3 = b;
 	b->Set(Vec2(12.0f, 0.25f), 20.0f);
 	b->position.Set(-0.9f, 1.0f);
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	j->Set(b1, b3, Vec2(-2.0f, 1.0f));
 	world.Add(j);
-	++j; ++numJoints;
+	++j; numJoints++; ASSERT_BOUNDS;
 
 	Body* b4 = b;
 	b->Set(Vec2(0.5f, 0.5f), 10.0f);
 	b->position.Set(-10.0f, 15.0f);
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	j->Set(b2, b4, Vec2(-7.0f, 15.0f));
 	world.Add(j);
-	++j; ++numJoints;
+	++j; numJoints++; ASSERT_BOUNDS;
 
 	Body* b5 = b;
 	b->Set(Vec2(2.0f, 2.0f), 20.0f);
 	b->position.Set(6.0f, 2.5f);
 	b->friction = 0.1f;
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	j->Set(b1, b5, Vec2(6.0f, 2.6f));
 	world.Add(j);
-	++j; ++numJoints;
+	++j; numJoints++; ASSERT_BOUNDS;
 
 	Body* b6 = b;
 	b->Set(Vec2(2.0f, 0.2f), 10.0f);
 	b->position.Set(6.0f, 3.6f);
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	j->Set(b5, b6, Vec2(7.0f, 3.5f));
 	world.Add(j);
-	++j; ++numJoints;
+	++j; numJoints++; ASSERT_BOUNDS;
+
+	return 0;
 }
 
 // A multi-pendulum
-static void Demo9(Body* b, Joint* j)
+static int Demo9(Body* b, Joint* j)
 {
+	const int&& usedBodies = 1 + 15 + 1;
+	const int&& usedJoints = 15;
+	if (usedBodies > maxBodies || usedJoints > maxJoints) return -1;
+
 	b->Set(Vec2(100.0f, 20.0f), FLT_MAX);
 	b->friction = 0.2f;
 	b->position.Set(0.0f, -0.5f * b->width.y);
@@ -503,7 +572,7 @@ static void Demo9(Body* b, Joint* j)
 
 	Body * b1 = b;
 	++b;
-	++numBodies;
+	numBodies++; ASSERT_BOUNDS;
 
 	float mass = 10.0f;
 
@@ -542,101 +611,130 @@ static void Demo9(Body* b, Joint* j)
 
 		b1 = b;
 		++b;
-		++numBodies;
+		numBodies++; ASSERT_BOUNDS;
 		++j;
-		++numJoints;
+		numJoints++; ASSERT_BOUNDS;
 	}
+
+	return 0;
 }
 
-static void Demo10(Body* b, Joint* j)
+static int Demo10(Body* b, Joint* j)
 {
-	b->Set(Vec2(200.0f, 1.0f), FLT_MAX);
+	const int size = sqrt(args.numBodies);
+	const int nrows = size, ncols = size;
+	const float yoffset = 10.0f;
+
+	const int&& usedBodies = 1 + nrows * ncols + 1;
+	const int&& usedJoints = 0;
+	if (usedBodies > maxBodies || usedJoints > maxJoints) return -1;
+
+	b->Set(Vec2(ncols * 8.0f, 20.0f), FLT_MAX);
 	b->friction = 0.2f;
-	b->position.Set(0.0f, -20.0f);
+	b->position.Set(0.0f, -0.5f * b->width.y);
 	b->rotation = 0.0f;
 	world.Add(b);
-	++b; ++numBodies;
-
-	const int size = sqrt(args.numBodies - 1);
-	const int nrows = size, ncols = size;
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	for (int i = 0; i < nrows; ++i)
 	{
-		for (int k = -ncols/2; k < ncols/2; ++k)
+		for (int k = -ncols/2; k < (ncols+1)/2; ++k)
 		{
 			b->Set(Vec2(1.0f, 1.0f), 1.0f);
 			b->friction = 0.2f;
-			b->position.Set(0.51f + 1.05f * k, -10.0f + 0.51f + 1.05f * i);
+			b->position.Set(0.51f + 1.05f * k, yoffset + 0.51f + 1.05f * i);
 			world.Add(b);
-			++b; ++numBodies;
+			++b; numBodies++; ASSERT_BOUNDS;
 		}
 	}
+
+	return 0;
 }
 
-static void Demo11(Body* b, Joint* j)
+static int Demo11(Body* b, Joint* j)
 {
-	b->Set(Vec2(100.0f, 1.0f), FLT_MAX);
-	b->friction = 0.2f;
-	b->position.Set(0.0f, -20.0f);
-	b->rotation = 0.0f;
-	world.Add(b);
-	++b; ++numBodies;
+	const int&& usedBodies = 4 + args.numBodies + 1;
+	const int&& usedJoints = 0;
+	if (usedBodies > maxBodies || usedJoints > maxJoints) return -1;
 
-	b->Set(Vec2(100.0f, 1.0f), FLT_MAX);
-	b->friction = 0.2f;
-	b->position.Set(0.0f, 36.0f);
-	b->rotation = 0.0f;
-	world.Add(b);
-	++b; ++numBodies;
+	const int size = sqrt(args.numBodies);
 
-	b->Set(Vec2(1.0f, 55.0f), FLT_MAX);
-	b->friction = 0.2f;
-	b->position.Set(-50.5f, 8.0f);
-	b->rotation = 0.0f;
-	world.Add(b);
-	++b; ++numBodies;
+	const float bodyOffset = 10.0f;
+	const float wallLength = size * bodyOffset;
 
-	b->Set(Vec2(1.0f, 55.0f), FLT_MAX);
+	b->Set(Vec2(wallLength, 1.0f), FLT_MAX);
 	b->friction = 0.2f;
-	b->position.Set(50.5f, 8.0f);
+	b->position.Set(0.0f, -0.5f - wallLength * 0.5f);
 	b->rotation = 0.0f;
 	world.Add(b);
-	++b; ++numBodies;
+	++b; numBodies++; ASSERT_BOUNDS;
+
+	b->Set(Vec2(wallLength, 1.0f), FLT_MAX);
+	b->friction = 0.2f;
+	b->position.Set(0.0f, 0.5f + wallLength * 0.5f);
+	b->rotation = 0.0f;
+	world.Add(b);
+	++b; numBodies++; ASSERT_BOUNDS;
+
+	b->Set(Vec2(1.0f, wallLength), FLT_MAX);
+	b->friction = 0.2f;
+	b->position.Set(-0.5f - wallLength * 0.5f, 0.0f);
+	b->rotation = 0.0f;
+	world.Add(b);
+	++b; numBodies++; ASSERT_BOUNDS;
+
+	b->Set(Vec2(1.0f, wallLength), FLT_MAX);
+	b->friction = 0.2f;
+	b->position.Set(0.5f + wallLength * 0.5f, 0.0f);
+	b->rotation = 0.0f;
+	world.Add(b);
+	++b; numBodies++; ASSERT_BOUNDS;
 
 	const int maxForce = 100.0f;
 
-	for (int i = 0; i < args.numBodies - 4; ++i)
+	for (int i = 0; i < args.numBodies; ++i)
 	{
-		b->Set(Vec2(0.4f, 0.4f), 1.0f);
+		b->Set(Vec2(1.0f, 1.0f), 1.0f);
 		b->friction = 0.0f;
-		float x = Random(-49.5f, 49.5f);
-		float y = Random(-19.0f, 35.0f);
-		b->position.Set(Random(-49.5f, 49.5f), Random(-19.0f, 35.0f));
+		float x = Random(-0.5 - wallLength / 2, 0.5 + wallLength / 2);
+		float y = Random(-0.5 - wallLength / 2, 0.5 + wallLength / 2);
+		b->position.Set(x, y);
 		b->force.Set(Random(-maxForce, maxForce), Random(-maxForce, maxForce));
 		world.Add(b);
-		++b; ++numBodies;
+		++b; numBodies++; ASSERT_BOUNDS;
 	}
 
 	world.gravity = noGravity;
+
+	return 0;
 }
 
-static void Demo12(Body* b, Joint* j)
+#define NUM_BODIES_ROPE 30
+static int Demo12(Body* b, Joint* j)
 {
+	int numRopes = args.numBodies / NUM_BODIES_ROPE;
+	numRopes = numRopes == 0 ? 1 : numRopes;
+	const int&& numJoinsRope = NUM_BODIES_ROPE;
+
+	const int&& usedBodies = 1 + numRopes * NUM_BODIES_ROPE + 1;
+	const int&& usedJoints = numJoinsRope * numRopes;
+	if (usedBodies > maxBodies || usedJoints > maxJoints) return -1;
+
 	b->Set(Vec2(1.0f, 1.0f), FLT_MAX);
 	b->friction = 0.2f;
-	b->position.Set(0.0f, 80.0f);
+	b->position.Set(0.0f, 2.0f);
 	b->rotation = 0.0f;
 	world.Add(b);
 
 	Body * bFloor = b;
 	++b;
-	++numBodies;
+	numBodies++; ASSERT_BOUNDS;
 
-	float mass = 10.0f * 0.001f;
+	float mass = 10.0f;
 
 	// Tuning
-	float frequencyHz = 2.0f;
-	float dampingRatio = 0.9f;
+	float frequencyHz = 4.0f;
+	float dampingRatio = 0.7f;
 
 	// frequency in radians
 	float omega = 2.0f * k_pi * frequencyHz;
@@ -651,44 +749,47 @@ static void Demo12(Body* b, Joint* j)
 	float softness = 1.0f / (d + timeStep * k);
 	float biasFactor = timeStep * k / (d + timeStep * k);
 
-	const int numBodiesRope = 100;
-
-	int numRopes = (args.numBodies - 1) / numBodiesRope;
-	numRopes = numRopes == 0 ? 1 : numRopes;
-
-	const float ropeXOffset = 2.0f, ropeYOffset = 0.8f;
+	const float ropeXOffset = 1.0f, ropeYOffset = 0.5f;
 	const float ropeInitY = 0.0f;
 
 	for (int ir = 0; ir < numRopes; ++ir) {
 		Body * b1 = bFloor;
 		const float xOffset = (ir - (numRopes / 2)) * ropeXOffset;;
-		const float y = ropeInitY + (numRopes * ropeYOffset) - ropeYOffset * (numRopes - ir);
+		const float y = ropeInitY - ropeYOffset * (numRopes - ir);
 
-		for (int ib = 0; ib < numBodiesRope; ++ib)
+		for (int ib = 0; ib < NUM_BODIES_ROPE; ++ib)
 		{
-			Vec2 x(xOffset + 0.2f + ib * 0.2f, y);
-			b->Set(Vec2(0.2f, 0.8f), mass);
+			Vec2 x(xOffset + 0.5f + ib, y);
+			b->Set(Vec2(0.75f, 0.25f), mass);
 			b->friction = 0.2f;
 			b->position = x;
 			b->rotation = 0.0f;
 			world.Add(b);
 
-			j->Set(b1, b, Vec2(xOffset + ib * 0.2f, y));
+			j->Set(b1, b, Vec2(xOffset + ib, y));
 			j->softness = softness;
 			j->biasFactor = biasFactor;
 			world.Add(j);
 
 			b1 = b;
 			++b;
-			++numBodies;
+			numBodies++; ASSERT_BOUNDS;
 			++j;
-			++numJoints;
+			numJoints++; ASSERT_BOUNDS;
 		}
 	}
+
+	return 0;
+}
+static int getMaxUsedJoints() {
+	int numRopes = args.numBodies / NUM_BODIES_ROPE;
+	numRopes = numRopes == 0 ? 1 : numRopes;
+	const int&& numJoinsRope = NUM_BODIES_ROPE;
+	return MAX(numJoinsRope * numRopes, MIN_NUM_JOINTS);
 }
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
-void (*demos[])(Body* b, Joint* j) = {Demo1, Demo2, Demo3, Demo4, Demo5, Demo6, Demo7, Demo8, Demo9, Demo10, Demo11, Demo12};
+int (*demos[])(Body* b, Joint* j) = {Demo1, Demo2, Demo3, Demo4, Demo5, Demo6, Demo7, Demo8, Demo9, Demo10, Demo11, Demo12};
 const char* demoStrings[] = {
 	"Demo 1: A Single Box",
 	"Demo 2: Simple Pendulum",
@@ -704,7 +805,7 @@ const char* demoStrings[] = {
 	"Demo 12: Ropes"
 };
 
-static void InitDemo(int index)
+static int InitDemo(int index)
 {
 	world.Clear();
 	numBodies = 0;
@@ -712,7 +813,11 @@ static void InitDemo(int index)
 	bomb = NULL;
 
 	demoIndex = index;
-	demos[index](bodies, joints);
+	if (demos[index](bodies, joints) == -1) {
+		printf("Not enough bodies specified for the scene: %d\n", demoIndex + 1);
+		return -1;
+	}
+	return 0;
 }
 
 #ifndef HEADLESS
@@ -787,22 +892,75 @@ static void Reshape(GLFWwindow*, int w, int h)
 	if (width >= height)
 	{
 		// aspect >= 1, set the height from -1 to 1, with larger width
-		glOrtho(-zoom * aspect, zoom * aspect, -zoom + pan_y, zoom + pan_y, -1.0, 1.0);
+		glOrtho(-zoom * aspect + pan_x, zoom * aspect + pan_x,
+			-zoom + pan_y, zoom + pan_y,
+			-1.0, 1.0);
 	}
 	else
 	{
 		// aspect < 1, set the width to -1 to 1, with larger height
-		glOrtho(-zoom, zoom, -zoom / aspect + pan_y, zoom / aspect + pan_y, -1.0, 1.0);
+		glOrtho(-zoom + pan_x, zoom + pan_x,
+			-zoom / aspect + pan_y, zoom / aspect + pan_y,
+			-1.0, 1.0);
 	}
+}
+
+static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    float zoomFactor = 1.1f;
+
+    if (yoffset > 0)
+        zoom /= zoomFactor; // zoom in
+    else
+        zoom *= zoomFactor; // zoom out
+
+    if (zoom < 0.1f) zoom = 0.1f;
+
+    Reshape(window, width, height);
+}
+
+static void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+    if (button == GLFW_MOUSE_BUTTON_LEFT)
+    {
+        if (action == GLFW_PRESS)
+        {
+            dragging = true;
+            glfwGetCursorPos(window, &lastMouseX, &lastMouseY);
+        }
+        else if (action == GLFW_RELEASE)
+        {
+            dragging = false;
+        }
+    }
+}
+
+static void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
+{
+    if (!dragging)
+        return;
+
+    double dx = xpos - lastMouseX;
+    double dy = ypos - lastMouseY;
+
+    lastMouseX = xpos;
+    lastMouseY = ypos;
+
+    float aspect = float(width) / float(height);
+
+    float scale = zoom / height * 2.0f;
+
+    pan_x -= dx * scale;
+    pan_y += dy * scale;
+
+    Reshape(window, width, height);
 }
 #endif
 
 static const struct option longOpts[] = {
 	{"help", 			no_argument, 		0, 'h'},
 	{"demo", 			required_argument, 	0, 'd'},
-#ifndef HEADLESS
 	{"headless", 	no_argument, 			0, 'e'},
-#endif
 	{"steps", 		required_argument, 		0, 's'},
 	{"bodies", 		required_argument, 		0, 'b'},
 	{"output", 		optional_argument, 		0, 'o'},
@@ -811,9 +969,7 @@ static const struct option longOpts[] = {
 static const char* opts = (
 	"h"
 	"d:"
-#ifndef HEADLESS
 	"e"
-#endif
 	"s:"
 	"b:"
 	"o::"
@@ -821,23 +977,15 @@ static const char* opts = (
 static const char* optInfo[] = {
 	"display this help",
 	"demo number",
-#ifndef HEADLESS
 	"enable headless mode, -s or --step is required",
-#endif
-	"exit when the specified number of frames is exceeded"
-#ifdef HEADLESS
-	" (required)"
-#endif
-	,
+	"exit when the specified number of frames is exceeded",
 	"number of bodies in the demo",
 	"output file for step time logging or stdin if no argument specified"
 };
 static const char* argInfo[] = {
 	0,
 	"integer",
-#ifndef HEADLESS
 	0,
-#endif
 	"integer",
 	"file name"
 };
@@ -887,7 +1035,8 @@ static int parseArgv(int argc, char* const* argv)
 				args.demo = demo;
 			else
 			{
-				printf("There is no \"%d\" demo; available demos: 1-%ld\n", demo, ARRAY_SIZE(demos));
+				printf("There is no \"%d\" demo; available demos: 1-%ld\n",
+					demo + 1, ARRAY_SIZE(demos));
 				return -1;
 			}
 		}
@@ -993,6 +1142,9 @@ static int runDemo()
 	glfwSwapInterval(1);
 	glfwSetWindowSizeCallback(mainWindow, Reshape);
 	glfwSetKeyCallback(mainWindow, Keyboard);
+	glfwSetScrollCallback(mainWindow, ScrollCallback);
+	glfwSetMouseButtonCallback(mainWindow, MouseButtonCallback);
+	glfwSetCursorPosCallback(mainWindow, CursorPosCallback);
 
 	float xscale, yscale;
 	glfwGetWindowContentScale(mainWindow, &xscale, &yscale);
@@ -1240,19 +1392,18 @@ int main(int argc, char* const* argv)
 	if (parseArgv(argc, argv) == -1)
 		return 0;
 
-	if (!(bodies = new Body[args.numBodies]))
-	{
-		printf("Error: Can not allocate bodies.\n");
-		return -1;
-	}
-	size_t maxJoints = args.numBodies * (args.numBodies - 1) / 2;
-	if (!(joints = new Joint[maxJoints]))
-	{
-		printf("Error: Can not allocate joints.\n");
-		return -1;
-	}
-
 	setlocale(LC_NUMERIC, "");
+
+	const size_t&& sizeofMB = 1024 * 1024;
+	const int&& numBodiesMargin = 10;
+
+	maxBodies = MAX(args.numBodies + NUM_BODIES_MARGIN, MIN_NUM_BODIES);
+	printf("Allocated bodies: %'lu MB\n", maxBodies * sizeof(Body) / sizeofMB);
+	bodies = new Body[maxBodies];
+
+	maxJoints = getMaxUsedJoints();
+	printf("Allocated joints: %'lu MB\n", maxJoints * sizeof(Joint) / sizeofMB);
+	joints = new Joint[maxJoints];
 
 	InitDemo(args.demo);
 
