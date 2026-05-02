@@ -808,7 +808,7 @@ static int InitDemo(int index)
 
 	demoIndex = index;
 	if (demos[index](bodies, joints) == -1) {
-		printf("Not enough bodies specified for the scene: %d\n", demoIndex);
+		printf("Not enough bodies specified for the scene: %d\n", demoIndex + 1);
 		return -1;
 	}
 	return 0;
@@ -1026,13 +1026,14 @@ static int parseArgv(int argc, char* const* argv)
 		{
 			int demo = atoi(optarg) - 1;
 			if (demo < ARRAY_SIZE(demos))
+			{
 				args.demo = demo;
-				if (InitDemo(args.demo) == -1) {
-					printf("Not enough bodies specified for the scene: %d\n", demoIndex);
-				}
+				InitDemo(args.demo);
+			}
 			else
 			{
-				printf("There is no \"%d\" demo; available demos: 1-%ld\n", demo, ARRAY_SIZE(demos));
+				printf("There is no \"%d\" demo; available demos: 1-%ld\n",
+					demo + 1, ARRAY_SIZE(demos));
 				return -1;
 			}
 		}
@@ -1373,9 +1374,7 @@ int main(int argc, char* const* argv)
 	printf("Allocated joints: %'lu MB\n", maxJoints * sizeof(Joint) / sizeofMB);
 	joints = new Joint[maxJoints];
 
-	if (InitDemo(args.demo) == -1) {
-		printf("Not enough bodies specified for the scene: %d\n", demoIndex);
-	}
+	InitDemo(args.demo);
 
 #ifndef HEADLESS
 	if (args.headless)
