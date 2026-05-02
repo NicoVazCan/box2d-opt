@@ -45,6 +45,12 @@ struct PrgArgs
 	const char* logFile;
 };
 
+#define MIN_NUM_BODIES 200
+#define MIN_NUM_JOINTS 100
+#define NUM_BODIES_MARGIN 10
+
+#define MAX(ln, rn) ((ln) > (rn) ? (ln) : (rn))
+
 namespace
 {
 #ifndef HEADLESS
@@ -63,7 +69,7 @@ namespace
 
 	int maxBodies, maxJoints;
 
-	PrgArgs args = {0, false, false, false, 0, 200, NULL};
+	PrgArgs args = {0, false, false, false, 0, MIN_NUM_BODIES - NUM_BODIES_MARGIN, NULL};
 
 	int numBodies = 0;
 	int numJoints = 0;
@@ -779,7 +785,7 @@ static int getMaxUsedJoints() {
 	int numRopes = args.numBodies / NUM_BODIES_ROPE;
 	numRopes = numRopes == 0 ? 1 : numRopes;
 	const int&& numJoinsRope = NUM_BODIES_ROPE;
-	return numJoinsRope * numRopes;
+	return MAX(numJoinsRope * numRopes, MIN_NUM_JOINTS);
 }
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
@@ -792,7 +798,7 @@ const char* demoStrings[] = {
 	"Demo 5: Pyramid Stacking",
 	"Demo 6: A Teeter",
 	"Demo 7: A Suspension Bridge",
-	"Demo 8: Dominoes",
+	"Demo 8: Dominos",
 	"Demo 9: Multi-pendulum",
 	"Demo 10: Rubik",
 	"Demo 11: Space",
@@ -1026,10 +1032,7 @@ static int parseArgv(int argc, char* const* argv)
 		{
 			int demo = atoi(optarg) - 1;
 			if (demo < ARRAY_SIZE(demos))
-			{
 				args.demo = demo;
-				InitDemo(args.demo);
-			}
 			else
 			{
 				printf("There is no \"%d\" demo; available demos: 1-%ld\n",
@@ -1366,7 +1369,7 @@ int main(int argc, char* const* argv)
 	const size_t&& sizeofMB = 1024 * 1024;
 	const int&& numBodiesMargin = 10;
 
-	maxBodies = args.numBodies + numBodiesMargin;
+	maxBodies = MAX(args.numBodies + NUM_BODIES_MARGIN, MIN_NUM_BODIES);
 	printf("Allocated bodies: %'lu MB\n", maxBodies * sizeof(Body) / sizeofMB);
 	bodies = new Body[maxBodies];
 
