@@ -55,8 +55,7 @@ void World::Clear()
 void World::BroadPhase()
 {
 	std::vector<bvh::index_t> query;
-
-#pragma omp parallel for private(query) shared(bodies, bodiesBVH) schedule(dynamic,512) if(bodies.size() >= 512)
+#pragma omp for private(query) schedule(runtime) 
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* bi = bodies[i];
@@ -97,79 +96,88 @@ void World::BroadPhase()
 
 void World::Step(float dt)
 {
-	float inv_dt = dt > 0.0f ? 1.0f / dt : 0.0f;
+#pragma omp parallel
+	{
+		float inv_dt = dt > 0.0f ? 1.0f / dt : 0.0f;
 
-	// Determine overlapping bodies and update contact points.
-	BroadPhase();
+		// Determine overlapping bodies and update contact points.
+		BroadPhase();
 
-	// Integrate forces.
+		// Integrate forces.
+#pragma omp for schedule(static)
+		for (int i = 0; i < (int)bodies.size(); ++i)
+		{
+			Body* b = bodies[i];
+
+			if (b->invMass != 0.0f)
+			{
+				b->velocity += dt * (gravity + b->invMass * b->force);
+				b->angularVelocity += dt * b->invI * b->torque;
+			}
+		}
+
+		// Perform pre-steps.
+#pragma omp for schedule(runtime)
+		for (int i = 0; i < (int)bodies.size(); ++i)
+		{
+			Body* bi = bodies[i];
+			for (ArbIter arb = bi->arbiters.begin(); arb != bi->arbiters.end();)
+			{
+				if (arb->second.updated)
+				{
+					arb->second.PreStep(inv_dt);
+					arb->second.updated = false;
+					++arb;
+				}
+				else
+				{
+					// If there have been no touchpoints in the current frame, delete
+					arb = bi->arbiters.erase(arb);
+				}
+			}
+		}
+#pragma omp for schedule(static)
+		for (int i = 0; i < (int)joints.size(); ++i)
+		{
+			joints[i]->PreStep(inv_dt);	
+		}
+
+		// Perform iterations
+		for (int i = 0; i < iterations; ++i)
+		{
+#pragma omp for private(i) schedule(runtime)
+			for (int j = 0; j < (int)bodies.size(); ++j)
+			{
+				Body* bi = bodies[j];
+				for (ArbIter arb = bi->arbiters.begin(); arb != bi->arbiters.end(); ++arb)
+				{
+					arb->second.ApplyImpulse();
+				}
+			}
+#pragma omp for private(i) schedule(static)
+			for (int j = 0; j < (int)joints.size(); ++j)
+			{
+				joints[j]->ApplyImpulse();
+			}
+		}
+
+		// Integrate Velocities
+#pragma omp for schedule(static)
+		for (int i = 0; i < (int)bodies.size(); ++i)
+		{
+			Body* b = bodies[i];
+
+			b->position += dt * b->velocity;
+			b->rotation += dt * b->angularVelocity;
+
+			b->force.Set(0.0f, 0.0f);
+			b->torque = 0.0f;
+		}
+	}
+
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* b = bodies[i];
-
-		if (b->invMass == 0.0f)
-			continue;
-
-		b->velocity += dt * (gravity + b->invMass * b->force);
-		b->angularVelocity += dt * b->invI * b->torque;
-	}
-
-	// Perform pre-steps.
-	for (int i = 0; i < (int)bodies.size(); ++i)
-	{
-		Body* bi = bodies[i];
-		for (ArbIter arb = bi->arbiters.begin(); arb != bi->arbiters.end();)
-		{
-			if (arb->second.updated)
-			{
-				arb->second.PreStep(inv_dt);
-				arb->second.updated = false;
-				++arb;
-			}
-			else
-			{
-				// If there have been no touchpoints in the current frame, delete
-				arb = bi->arbiters.erase(arb);
-			}
-		}
-	}
-
-	for (int i = 0; i < (int)joints.size(); ++i)
-	{
-		joints[i]->PreStep(inv_dt);	
-	}
-
-	// Perform iterations
-#pragma omp parallel shared(bodies) if(bodies.size() >= 512)
-	for (int i = 0; i < iterations; ++i)
-	{
-#pragma omp for private(i) schedule(dynamic, 512)
-		for (int j = 0; j < (int)bodies.size(); ++j)
-		{
-			Body* bi = bodies[j];
-			for (ArbIter arb = bi->arbiters.begin(); arb != bi->arbiters.end(); ++arb)
-			{
-				arb->second.ApplyImpulse();
-			}
-		}
-#pragma omp for private(i) schedule(dynamic, 512)
-		for (int j = 0; j < (int)joints.size(); ++j)
-		{
-			joints[j]->ApplyImpulse();
-		}
-	}
-
-	// Integrate Velocities
-	for (int i = 0; i < (int)bodies.size(); ++i)
-	{
-		Body* b = bodies[i];
-
-		b->position += dt * b->velocity;
-		b->rotation += dt * b->angularVelocity;
-
-		b->force.Set(0.0f, 0.0f);
-		b->torque = 0.0f;
-
 		bodiesBVH.move(b->idxBVH, b->GetAABB());
 	}
 }
