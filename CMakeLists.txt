@@ -12,6 +12,13 @@ if (RPI)
 	option(GLFW_BUILD_KMSDRM "RPI KMSDRM" 1)
 endif()
 
+add_compile_options(
+    $<$<CONFIG:Profiling>:-DNDEBUG>
+    $<$<CONFIG:Profiling>:-O2>
+    $<$<CONFIG:Profiling>:-g>
+    $<$<CONFIG:Profiling>:-fno-omit-frame-pointer>
+)
+
 add_subdirectory(src)
 
 add_subdirectory(extern/bvh)
@@ -29,8 +36,4 @@ if (BOX2D_BUILD_SAMPLES)
 	if (MSVC)
 		set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT samples)
 	endif()
-
-	target_compile_options(box2d-lite PUBLIC
-	    $<$<CONFIG:Profiling>:-O2 -g -fno-omit-frame-pointer>
-	)
 endif()
