@@ -849,7 +849,7 @@ static void Keyboard(GLFWwindow* window, int key, int scancode, int action, int 
 		else
 			InitDemo(key - GLFW_KEY_1);
 		break;
-
+#ifdef DEMO_TUNE
 	case GLFW_KEY_A:
 		World::accumulateImpulses = !World::accumulateImpulses;
 		break;
@@ -861,7 +861,7 @@ static void Keyboard(GLFWwindow* window, int key, int scancode, int action, int 
 	case GLFW_KEY_W:
 		World::warmStarting = !World::warmStarting;
 		break;
-
+#endif
 	case GLFW_KEY_G:
 		if (world.gravity.y == 0.0f)
 			world.gravity = gravity;
@@ -1218,39 +1218,43 @@ static int runDemo()
 		ImGui::Begin("Overlay", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar);
 		ImGui::End();
 
-		DrawText(5, 5, demoStrings[demoIndex]);
-		DrawText(5, 35, "Keys: 1-9 Demos, Space to Launch the Bomb");
+		int msgY = 0;
+		const int msgOffset = 30;
+
+		DrawText(5, msgY += 5, demoStrings[demoIndex]);
+		DrawText(5, msgY += msgOffset, "Keys: 1-9 Demos, Space to Launch the Bomb");
 
 		char buffer[64];
+#ifdef DEMO_TUNE
 		sprintf(buffer, "(A)ccumulation %s", World::accumulateImpulses ? "ON" : "OFF");
-		DrawText(5, 65, buffer);
+		DrawText(5, msgY += msgOffset, buffer);
 
 		sprintf(buffer, "(P)osition Correction %s", World::positionCorrection ? "ON" : "OFF");
-		DrawText(5, 95, buffer);
+		DrawText(5, msgY += msgOffset, buffer);
 
 		sprintf(buffer, "(W)arm Starting %s", World::warmStarting ? "ON" : "OFF");
-		DrawText(5, 125, buffer);
-
+		DrawText(5, msgY += msgOffset, buffer);
+#endif
 		sprintf(buffer, "(G)ravity Enabled %s", world.gravity.y != 0.0f ? "ON" : "OFF");
-		DrawText(5, 155, buffer);
+		DrawText(5, msgY += msgOffset, buffer);
 
 		sprintf(buffer, "(D)raw BVH Tree Enabled %s", drawBVHTree ? "ON" : "OFF");
-		DrawText(5, 185, buffer);
+		DrawText(5, msgY += msgOffset, buffer);
 
 		sprintf(buffer, "FPS: %2d", avgFPS);
-		DrawText(5, 205, buffer);
+		DrawText(5, msgY += msgOffset, buffer);
 		
 		sprintf(buffer, "World Step Time:     %'14ld ns", avgStepNs);
-		DrawText(5, 225, buffer);
+		DrawText(5, msgY += msgOffset, buffer);
 
 		sprintf(buffer, "World Max Step Time: %'14ld ns", maxStepNs);
-		DrawText(5, 245, buffer);
+		DrawText(5, msgY += msgOffset, buffer);
 
 		sprintf(buffer, "World Min Step Time: %'14ld ns", minStepNs);
-		DrawText(5, 265, buffer);
+		DrawText(5, msgY += msgOffset, buffer);
 
 		sprintf(buffer, "Step: %lu", step);
-		DrawText(5, 285, buffer);
+		DrawText(5, msgY += msgOffset, buffer);
 
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();

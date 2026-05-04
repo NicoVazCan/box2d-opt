@@ -12,6 +12,10 @@ if (RPI)
 	option(GLFW_BUILD_KMSDRM "RPI KMSDRM" 1)
 endif()
 
+if (DEMO_TUNE)
+	add_compile_definitions(DEMO_TUNE)
+endif()
+
 add_compile_options(
     $<$<CONFIG:Profiling>:-DNDEBUG>
     $<$<CONFIG:Profiling>:-march=native>

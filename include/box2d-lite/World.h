@@ -37,9 +37,15 @@ struct World
 	std::vector<Joint*> joints;
 	Vec2 gravity;
 	int iterations;
+#ifdef DEMO_TUNE
 	static bool accumulateImpulses;
 	static bool warmStarting;
 	static bool positionCorrection;
+#else
+	static constexpr bool accumulateImpulses = true;
+	static constexpr bool warmStarting = true;
+	static constexpr bool positionCorrection = true;
+#endif
 };
 
 #endif
