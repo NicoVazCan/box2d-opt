@@ -24,9 +24,11 @@ using std::pair;
 typedef map<Body*, Arbiter>::iterator ArbIter;
 typedef pair<Body*, Arbiter> ArbPair;
 
+#ifdef DEMO_TUNE
 bool World::accumulateImpulses = true;
 bool World::warmStarting = true;
 bool World::positionCorrection = true;
+#endif
 
 void World::Add(Body* body)
 {
