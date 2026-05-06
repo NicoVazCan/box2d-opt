@@ -717,6 +717,7 @@ static void InitDemo(int index)
 	demos[index](bodies, joints);
 }
 
+#ifndef HEADLESS
 static void Reshape(GLFWwindow*, int w, int h)
 {
 	width = w;
@@ -743,7 +744,6 @@ static void Reshape(GLFWwindow*, int w, int h)
 	}
 }
 
-#ifndef HEADLESS
 static void Keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	if (action != GLFW_PRESS && action != GLFW_REPEAT)
