@@ -90,15 +90,31 @@ void Arbiter::PreStep(float inv_dt)
 	float b1InitAngularVelocity, b1AngularVelocity;
 	float b2InitAngularVelocity, b2AngularVelocity;
 
+#ifdef STD_SHARED_MUTEX
+	{std::shared_lock lock(body1->mutex);
+#else
 	body1->lock.lock_shared();
+#endif
 	b1InitVelocity = b1Velocity = body1->velocity;
 	b1InitAngularVelocity = b1AngularVelocity = body1->angularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body1->lock.unlock_shared();
+#endif
 
+#ifdef STD_SHARED_MUTEX
+	{std::shared_lock lock(body2->mutex);
+#else
 	body2->lock.lock_shared();
+#endif
 	b2InitVelocity = b2Velocity = body2->velocity;
 	b2InitAngularVelocity = b2AngularVelocity = body2->angularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body2->lock.unlock_shared();
+#endif
 
 	for (int i = 0; i < numContacts; ++i)
 	{
@@ -136,19 +152,35 @@ void Arbiter::PreStep(float inv_dt)
 		}
 	}
 
+#ifdef STD_SHARED_MUTEX
+	{std::unique_lock lock(body1->mutex);
+#else
 	body1->lock.lock();
+#endif
 	body1->velocity -= b1InitVelocity;
 	body1->velocity += b1Velocity;
 	body1->angularVelocity -= b1InitAngularVelocity;
 	body1->angularVelocity += b1AngularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body1->lock.unlock();
+#endif
 
+#ifdef STD_SHARED_MUTEX
+	{std::unique_lock lock(body2->mutex);
+#else
 	body2->lock.lock();
+#endif
 	body2->velocity -= b2InitVelocity;
 	body2->velocity += b2Velocity;
 	body2->angularVelocity -= b2InitAngularVelocity;
 	body2->angularVelocity += b2AngularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body2->lock.unlock();
+#endif
 }
 
 void Arbiter::ApplyImpulse()
@@ -158,15 +190,31 @@ void Arbiter::ApplyImpulse()
 	float b1InitAngularVelocity, b1AngularVelocity;
 	float b2InitAngularVelocity, b2AngularVelocity;
 
+#ifdef STD_SHARED_MUTEX
+	{std::shared_lock lock(body1->mutex);
+#else
 	body1->lock.lock_shared();
+#endif
 	b1InitVelocity = b1Velocity = body1->velocity;
 	b1InitAngularVelocity = b1AngularVelocity = body1->angularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body1->lock.unlock_shared();
+#endif
 
+#ifdef STD_SHARED_MUTEX
+	{std::shared_lock lock(body2->mutex);
+#else
 	body2->lock.lock_shared();
+#endif
 	b2InitVelocity = b2Velocity = body2->velocity;
 	b2InitAngularVelocity = b2AngularVelocity = body2->angularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body2->lock.unlock_shared();
+#endif
 
 	for (int i = 0; i < numContacts; ++i)
 	{
@@ -236,17 +284,33 @@ void Arbiter::ApplyImpulse()
 		b2AngularVelocity += body2->invI * Cross(c->r2, Pt);
 	}
 
+#ifdef STD_SHARED_MUTEX
+	{std::unique_lock lock(body1->mutex);
+#else
 	body1->lock.lock();
+#endif
 	body1->velocity -= b1InitVelocity;
 	body1->velocity += b1Velocity;
 	body1->angularVelocity -= b1InitAngularVelocity;
 	body1->angularVelocity += b1AngularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body1->lock.unlock();
+#endif
 
-	body2->lock.lock();
+#ifdef STD_SHARED_MUTEX
+	{std::shared_lock lock(body2->mutex);
+#else
+	body2->lock.lock_shared();
+#endif
 	body2->velocity -= b2InitVelocity;
 	body2->velocity += b2Velocity;
 	body2->angularVelocity -= b2InitAngularVelocity;
 	body2->angularVelocity += b2AngularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body2->lock.unlock();
+#endif
 }

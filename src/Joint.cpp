@@ -39,15 +39,31 @@ void Joint::PreStep(float inv_dt)
 	float b1InitAngularVelocity, b1AngularVelocity;
 	float b2InitAngularVelocity, b2AngularVelocity;
 
+#ifdef STD_SHARED_MUTEX
+	{std::shared_lock lock(body1->mutex);
+#else
 	body1->lock.lock_shared();
+#endif
 	b1InitVelocity = b1Velocity = body1->velocity;
 	b1InitAngularVelocity = b1AngularVelocity = body1->angularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body1->lock.unlock_shared();
+#endif
 
+#ifdef STD_SHARED_MUTEX
+	{std::shared_lock lock(body2->mutex);
+#else
 	body2->lock.lock_shared();
+#endif
 	b2InitVelocity = b2Velocity = body2->velocity;
 	b2InitAngularVelocity = b2AngularVelocity = body2->angularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body2->lock.unlock_shared();
+#endif
 
 	// Pre-compute anchors, mass matrix, and bias.
 	Mat22 Rot1(body1->rotation);
@@ -105,19 +121,35 @@ void Joint::PreStep(float inv_dt)
 		P.Set(0.0f, 0.0f);
 	}
 
+#ifdef STD_SHARED_MUTEX
+	{std::unique_lock lock(body1->mutex);
+#else
 	body1->lock.lock();
+#endif
 	body1->velocity -= b1InitVelocity;
 	body1->velocity += b1Velocity;
 	body1->angularVelocity -= b1InitAngularVelocity;
 	body1->angularVelocity += b1AngularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body1->lock.unlock();
+#endif
 
-	body2->lock.lock();
+#ifdef STD_SHARED_MUTEX
+	{std::shared_lock lock(body2->mutex);
+#else
+	body2->lock.lock_shared();
+#endif
 	body2->velocity -= b2InitVelocity;
 	body2->velocity += b2Velocity;
 	body2->angularVelocity -= b2InitAngularVelocity;
 	body2->angularVelocity += b2AngularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body2->lock.unlock();
+#endif
 }
 
 void Joint::ApplyImpulse()
@@ -127,15 +159,31 @@ void Joint::ApplyImpulse()
 	float b1InitAngularVelocity, b1AngularVelocity;
 	float b2InitAngularVelocity, b2AngularVelocity;
 
+#ifdef STD_SHARED_MUTEX
+	{std::shared_lock lock(body1->mutex);
+#else
 	body1->lock.lock_shared();
+#endif
 	b1InitVelocity = b1Velocity = body1->velocity;
 	b1InitAngularVelocity = b1AngularVelocity = body1->angularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body1->lock.unlock_shared();
+#endif
 
+#ifdef STD_SHARED_MUTEX
+	{std::shared_lock lock(body2->mutex);
+#else
 	body2->lock.lock_shared();
+#endif
 	b2InitVelocity = b2Velocity = body2->velocity;
 	b2InitAngularVelocity = b2AngularVelocity = body2->angularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body2->lock.unlock_shared();
+#endif
 
     Vec2 dv = b2Velocity + Cross(b2AngularVelocity, r2) - b1Velocity - Cross(b1AngularVelocity, r1);
 
@@ -151,17 +199,33 @@ void Joint::ApplyImpulse()
 
 	P += impulse;
 
+#ifdef STD_SHARED_MUTEX
+	{std::unique_lock lock(body1->mutex);
+#else
 	body1->lock.lock();
+#endif
 	body1->velocity -= b1InitVelocity;
 	body1->velocity += b1Velocity;
 	body1->angularVelocity -= b1InitAngularVelocity;
 	body1->angularVelocity += b1AngularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body1->lock.unlock();
+#endif
 
-	body2->lock.lock();
+#ifdef STD_SHARED_MUTEX
+	{std::shared_lock lock(body2->mutex);
+#else
+	body2->lock.lock_shared();
+#endif
 	body2->velocity -= b2InitVelocity;
 	body2->velocity += b2Velocity;
 	body2->angularVelocity -= b2InitAngularVelocity;
 	body2->angularVelocity += b2AngularVelocity;
+#ifdef STD_SHARED_MUTEX
+	}
+#else
 	body2->lock.unlock();
+#endif
 }

@@ -11,7 +11,7 @@
 
 #include "box2d-lite/Body.h"
 
-Body::Body() : lock()
+Body::Body()
 {
 	position.Set(0.0f, 0.0f);
 	rotation = 0.0f;

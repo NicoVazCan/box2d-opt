@@ -15,8 +15,14 @@
 #include <map>
 #include "MathUtils.h"
 #include "Arbiter.h"
-#include "SharedLock.h"
 #include <bvh.h>
+
+#ifdef STD_SHARED_MUTEX
+# include <shared_mutex>
+#else
+# include "SharedLock.h"
+#endif
+
 
 struct Body
 {
@@ -66,8 +72,11 @@ struct Body
 	std::map<Body*, Arbiter> arbiters;
 	bvh::index_t idxBVH;
 	int idxWorld;
-
-	SharedLock lock; 
+#ifdef STD_SHARED_MUTEX
+	std::shared_mutex mutex;
+#else
+	SharedLock lock;
+#endif
 };
 
 #endif
