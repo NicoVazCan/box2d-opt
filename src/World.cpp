@@ -57,7 +57,7 @@ void World::Clear()
 void World::BroadPhase()
 {
 	std::vector<bvh::index_t> query;
-#pragma omp for private(query) schedule(runtime) 
+#pragma omp for private(query) schedule(static) 
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* bi = bodies[i];
@@ -106,7 +106,7 @@ void World::Step(float dt)
 		BroadPhase();
 
 		// Integrate forces.
-#pragma omp for schedule(static)
+#pragma omp for schedule(static) 
 		for (int i = 0; i < (int)bodies.size(); ++i)
 		{
 			Body* b = bodies[i];
@@ -119,7 +119,11 @@ void World::Step(float dt)
 		}
 
 		// Perform pre-steps.
-#pragma omp for schedule(runtime)
+#ifdef NOWAIT
+# pragma omp for schedule(static) nowait
+#else
+# pragma omp for schedule(static)
+#endif
 		for (int i = 0; i < (int)bodies.size(); ++i)
 		{
 			Body* bi = bodies[i];
@@ -138,7 +142,11 @@ void World::Step(float dt)
 				}
 			}
 		}
-#pragma omp for schedule(static)
+#ifdef NOWAIT
+# pragma omp for schedule(static) nowait
+#else
+# pragma omp for schedule(static)
+#endif
 		for (int i = 0; i < (int)joints.size(); ++i)
 		{
 			joints[i]->PreStep(inv_dt);	
@@ -147,7 +155,11 @@ void World::Step(float dt)
 		// Perform iterations
 		for (int i = 0; i < iterations; ++i)
 		{
-#pragma omp for private(i) schedule(runtime)
+#ifdef NOWAIT
+# pragma omp for private(i) schedule(static) nowait
+#else
+# pragma omp for private(i) schedule(static)
+#endif
 			for (int j = 0; j < (int)bodies.size(); ++j)
 			{
 				Body* bi = bodies[j];
@@ -156,15 +168,26 @@ void World::Step(float dt)
 					arb->second.ApplyImpulse();
 				}
 			}
-#pragma omp for private(i) schedule(static)
+#ifdef NOWAIT
+# pragma omp for private(i) schedule(static) nowait
+#else
+# pragma omp for private(i) schedule(static)
+#endif
 			for (int j = 0; j < (int)joints.size(); ++j)
 			{
 				joints[j]->ApplyImpulse();
 			}
 		}
+#ifdef NOWAIT
+# pragma omp barrier
+#endif
 
 		// Integrate Velocities
-#pragma omp for schedule(static)
+#ifdef NOWAIT
+# pragma omp for schedule(static) nowait
+#else
+# pragma omp for schedule(static)
+#endif
 		for (int i = 0; i < (int)bodies.size(); ++i)
 		{
 			Body* b = bodies[i];
