@@ -19,7 +19,7 @@ STEPS=$4
 THREADS_LIST=($5)
 
 # Carpeta de resultados
-OUTDIR="results_${SLURM_JOB_ID}"
+OUTDIR="${STORE}/results_${SLURM_JOB_ID}"
 mkdir -p "$OUTDIR"
 
 echo "Programa: $PROGRAM"
