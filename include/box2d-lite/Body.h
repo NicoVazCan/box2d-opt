@@ -15,13 +15,11 @@
 #include <map>
 #include "MathUtils.h"
 #include "Arbiter.h"
-#if !defined(STD_SHARED_MUTEX) && !defined(OMP_ATOMIC)
-# include <bvh.h>
-#endif
+#include <bvh.h>
 
 #ifdef STD_SHARED_MUTEX
 # include <shared_mutex>
-#else
+#elif !defined(OMP_ATOMIC)
 # include "SharedLock.h"
 #endif
 
