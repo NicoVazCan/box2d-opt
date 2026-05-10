@@ -90,55 +90,23 @@ void Arbiter::PreStep(float inv_dt)
 	float b1InitAngularVelocity, b1AngularVelocity;
 	float b2InitAngularVelocity, b2AngularVelocity;
 
-#ifdef STD_SHARED_MUTEX
-	{std::shared_lock lock(body1->mutex);
-#elif !defined(OMP_ATOMIC)
-	body1->lock.lock_shared();
-#endif
-#ifdef OMP_ATOMIC
-# pragma omp atomic read
-#endif
+#pragma omp atomic read
 	b1Velocity.x = body1->velocity.x;
-#ifdef OMP_ATOMIC
-# pragma omp atomic read
-#endif
+#pragma omp atomic read
 	b1Velocity.y = body1->velocity.y;
 	b1InitVelocity = b1Velocity;
-#ifdef OMP_ATOMIC
-# pragma omp atomic read
-#endif
+#pragma omp atomic read
 	b1AngularVelocity = body1->angularVelocity;
 	b1InitAngularVelocity = b1AngularVelocity;
-#ifdef STD_SHARED_MUTEX
-	}
-#elif !defined(OMP_ATOMIC)
-	body1->lock.unlock_shared();
-#endif
 
-#ifdef STD_SHARED_MUTEX
-	{std::shared_lock lock(body2->mutex);
-#elif !defined(OMP_ATOMIC)
-	body2->lock.lock_shared();
-#endif
-#ifdef OMP_ATOMIC
-# pragma omp atomic read
-#endif
+#pragma omp atomic read
 	b2Velocity.x = body2->velocity.x;
-#ifdef OMP_ATOMIC
-# pragma omp atomic read
-#endif
+#pragma omp atomic read
 	b2Velocity.y = body2->velocity.y;
 	b2InitVelocity = b2Velocity;
-#ifdef OMP_ATOMIC
-# pragma omp atomic read
-#endif
+#pragma omp atomic read
 	b2AngularVelocity = body2->angularVelocity;
 	b2InitAngularVelocity = b2AngularVelocity;
-#ifdef STD_SHARED_MUTEX
-	}
-#elif !defined(OMP_ATOMIC)
-	body2->lock.unlock_shared();
-#endif
 
 	for (int i = 0; i < numContacts; ++i)
 	{
@@ -176,55 +144,23 @@ void Arbiter::PreStep(float inv_dt)
 		}
 	}
 
-#ifdef STD_SHARED_MUTEX
-	{std::unique_lock lock(body1->mutex);
-#elif !defined(OMP_ATOMIC)
-	body1->lock.lock();
-#endif
 	b1Velocity -= b1InitVelocity;
-#ifdef OMP_ATOMIC
-# pragma omp atomic update
-#endif
+#pragma omp atomic update
 	body1->velocity.x += b1Velocity.x;
-#ifdef OMP_ATOMIC
-# pragma omp atomic update
-#endif
+#pragma omp atomic update
 	body1->velocity.y += b1Velocity.y;
 	b1AngularVelocity -= b1InitAngularVelocity;
-#ifdef OMP_ATOMIC
-# pragma omp atomic update
-#endif
+#pragma omp atomic update
 	body1->angularVelocity += b1AngularVelocity;
-#ifdef STD_SHARED_MUTEX
-	}
-#elif !defined(OMP_ATOMIC)
-	body1->lock.unlock();
-#endif
 
-#ifdef STD_SHARED_MUTEX
-	{std::unique_lock lock(body2->mutex);
-#elif !defined(OMP_ATOMIC)
-	body2->lock.lock();
-#endif
 	b2Velocity -= b2InitVelocity;
-#ifdef OMP_ATOMIC
-# pragma omp atomic update
-#endif
+#pragma omp atomic update
 	body2->velocity.x += b2Velocity.x;
-#ifdef OMP_ATOMIC
-# pragma omp atomic update
-#endif
+#pragma omp atomic update
 	body2->velocity.y += b2Velocity.y;
 	b2AngularVelocity -= b2InitAngularVelocity;
-#ifdef OMP_ATOMIC
-# pragma omp atomic update
-#endif
+#pragma omp atomic update
 	body2->angularVelocity += b2AngularVelocity;
-#ifdef STD_SHARED_MUTEX
-	}
-#elif !defined(OMP_ATOMIC)
-	body2->lock.unlock();
-#endif
 }
 
 void Arbiter::ApplyImpulse()
@@ -234,55 +170,23 @@ void Arbiter::ApplyImpulse()
 	float b1InitAngularVelocity, b1AngularVelocity;
 	float b2InitAngularVelocity, b2AngularVelocity;
 
-#ifdef STD_SHARED_MUTEX
-	{std::shared_lock lock(body1->mutex);
-#elif !defined(OMP_ATOMIC)
-	body1->lock.lock_shared();
-#endif
-#ifdef OMP_ATOMIC
-# pragma omp atomic read
-#endif
+#pragma omp atomic read
 	b1Velocity.x = body1->velocity.x;
-#ifdef OMP_ATOMIC
-# pragma omp atomic read
-#endif
+#pragma omp atomic read
 	b1Velocity.y = body1->velocity.y;
 	b1InitVelocity = b1Velocity;
-#ifdef OMP_ATOMIC
-# pragma omp atomic read
-#endif
+#pragma omp atomic read
 	b1AngularVelocity = body1->angularVelocity;
 	b1InitAngularVelocity = b1AngularVelocity;
-#ifdef STD_SHARED_MUTEX
-	}
-#elif !defined(OMP_ATOMIC)
-	body1->lock.unlock_shared();
-#endif
 
-#ifdef STD_SHARED_MUTEX
-	{std::shared_lock lock(body2->mutex);
-#elif !defined(OMP_ATOMIC)
-	body2->lock.lock_shared();
-#endif
-#ifdef OMP_ATOMIC
-# pragma omp atomic read
-#endif
+#pragma omp atomic read
 	b2Velocity.x = body2->velocity.x;
-#ifdef OMP_ATOMIC
-# pragma omp atomic read
-#endif
+#pragma omp atomic read
 	b2Velocity.y = body2->velocity.y;
 	b2InitVelocity = b2Velocity;
-#ifdef OMP_ATOMIC
-# pragma omp atomic read
-#endif
+#pragma omp atomic read
 	b2AngularVelocity = body2->angularVelocity;
 	b2InitAngularVelocity = b2AngularVelocity;
-#ifdef STD_SHARED_MUTEX
-	}
-#elif !defined(OMP_ATOMIC)
-	body2->lock.unlock_shared();
-#endif
 
 	for (int i = 0; i < numContacts; ++i)
 	{
@@ -352,53 +256,21 @@ void Arbiter::ApplyImpulse()
 		b2AngularVelocity += body2->invI * Cross(c->r2, Pt);
 	}
 
-#ifdef STD_SHARED_MUTEX
-	{std::unique_lock lock(body1->mutex);
-#elif !defined(OMP_ATOMIC)
-	body1->lock.lock();
-#endif
 	b1Velocity -= b1InitVelocity;
-#ifdef OMP_ATOMIC
-# pragma omp atomic update
-#endif
+#pragma omp atomic update
 	body1->velocity.x += b1Velocity.x;
-#ifdef OMP_ATOMIC
-# pragma omp atomic update
-#endif
+#pragma omp atomic update
 	body1->velocity.y += b1Velocity.y;
 	b1AngularVelocity -= b1InitAngularVelocity;
-#ifdef OMP_ATOMIC
-# pragma omp atomic update
-#endif
+#pragma omp atomic update
 	body1->angularVelocity += b1AngularVelocity;
-#ifdef STD_SHARED_MUTEX
-	}
-#elif !defined(OMP_ATOMIC)
-	body1->lock.unlock();
-#endif
 
-#ifdef STD_SHARED_MUTEX
-	{std::unique_lock lock(body2->mutex);
-#elif !defined(OMP_ATOMIC)
-	body2->lock.lock();
-#endif
 	b2Velocity -= b2InitVelocity;
-#ifdef OMP_ATOMIC
-# pragma omp atomic update
-#endif
+#pragma omp atomic update
 	body2->velocity.x += b2Velocity.x;
-#ifdef OMP_ATOMIC
-# pragma omp atomic update
-#endif
+#pragma omp atomic update
 	body2->velocity.y += b2Velocity.y;
 	b2AngularVelocity -= b2InitAngularVelocity;
-#ifdef OMP_ATOMIC
-# pragma omp atomic update
-#endif
+#pragma omp atomic update
 	body2->angularVelocity += b2AngularVelocity;
-#ifdef STD_SHARED_MUTEX
-	}
-#elif !defined(OMP_ATOMIC)
-	body2->lock.unlock();
-#endif
 }
