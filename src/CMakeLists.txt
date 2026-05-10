@@ -20,7 +20,7 @@ if (STD_SHARED_MUTEX)
 	target_compile_features(box2d-lite PUBLIC cxx_std_17)
 	target_compile_options(box2d-lite PUBLIC -DSTD_SHARED_MUTEX)
 elseif (OMP_ATOMIC)
-	target_compile_options(box2d-lite PUBLIC -DOMP_SHARED)
+	target_compile_options(box2d-lite PUBLIC -DOMP_ATOMIC)
 endif()
 
 list (GET BOX2D_SOURCE_FILES 2 VEC_INFO_FILE)
