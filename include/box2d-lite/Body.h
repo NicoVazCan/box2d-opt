@@ -15,7 +15,9 @@
 #include <map>
 #include "MathUtils.h"
 #include "Arbiter.h"
-#include <bvh.h>
+#if !defined(STD_SHARED_MUTEX) && !defined(OMP_ATOMIC)
+# include <bvh.h>
+#endif
 
 #ifdef STD_SHARED_MUTEX
 # include <shared_mutex>
@@ -74,7 +76,7 @@ struct Body
 	int idxWorld;
 #ifdef STD_SHARED_MUTEX
 	std::shared_mutex mutex;
-#else
+#elif !defined(OMP_ATOMIC)
 	SharedLock lock;
 #endif
 };
