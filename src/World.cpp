@@ -119,11 +119,7 @@ void World::Step(float dt)
 		}
 
 		// Perform pre-steps.
-#ifdef NOWAIT
-# pragma omp for schedule(static) nowait
-#else
-# pragma omp for schedule(static)
-#endif
+#pragma omp for schedule(static)
 		for (int i = 0; i < (int)bodies.size(); ++i)
 		{
 			Body* bi = bodies[i];
@@ -142,11 +138,7 @@ void World::Step(float dt)
 				}
 			}
 		}
-#ifdef NOWAIT
-# pragma omp for schedule(static) nowait
-#else
-# pragma omp for schedule(static)
-#endif
+#pragma omp for schedule(static)
 		for (int i = 0; i < (int)joints.size(); ++i)
 		{
 			joints[i]->PreStep(inv_dt);	
@@ -155,11 +147,7 @@ void World::Step(float dt)
 		// Perform iterations
 		for (int i = 0; i < iterations; ++i)
 		{
-#ifdef NOWAIT
-# pragma omp for private(i) schedule(static) nowait
-#else
-# pragma omp for private(i) schedule(static)
-#endif
+#pragma omp for private(i) schedule(static)
 			for (int j = 0; j < (int)bodies.size(); ++j)
 			{
 				Body* bi = bodies[j];
@@ -168,26 +156,15 @@ void World::Step(float dt)
 					arb->second.ApplyImpulse();
 				}
 			}
-#ifdef NOWAIT
-# pragma omp for private(i) schedule(static) nowait
-#else
-# pragma omp for private(i) schedule(static)
-#endif
+#pragma omp for private(i) schedule(static)
 			for (int j = 0; j < (int)joints.size(); ++j)
 			{
 				joints[j]->ApplyImpulse();
 			}
 		}
-#ifdef NOWAIT
-# pragma omp barrier
-#endif
 
 		// Integrate Velocities
-#ifdef NOWAIT
-# pragma omp for schedule(static) nowait
-#else
-# pragma omp for schedule(static)
-#endif
+#pragma omp for schedule(static)
 		for (int i = 0; i < (int)bodies.size(); ++i)
 		{
 			Body* b = bodies[i];
