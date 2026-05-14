@@ -1329,7 +1329,7 @@ int main(int argc, char* const* argv)
 	if (parseArgv(argc, argv) == -1)
 		return 0;
 
-	setlocale(LC_NUMERIC, "");
+	setlocale(LC_ALL, "es_ES.UTF-8");
 
 	const size_t&& sizeofMB = 1024 * 1024;
 	const int&& numBodiesMargin = 10;
