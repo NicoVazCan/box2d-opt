@@ -27,7 +27,7 @@ add_compile_options(
 message(STATUS "Used C++ compiler: " ${CMAKE_CXX_COMPILER_ID})
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-	add_compile_options(
+	target_compile_options(box2d-lite PRIVATE
 	    $<$<CONFIG:Profiling>:-ftree-vectorize>
 	)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")

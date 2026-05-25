@@ -72,11 +72,6 @@ struct Body
 	std::map<Body*, Arbiter> arbiters;
 	bvh::index_t idxBVH;
 	int idxWorld;
-#ifdef STD_SHARED_MUTEX
-	std::shared_mutex mutex;
-#elif !defined(OMP_ATOMIC)
-	SharedLock lock;
-#endif
 };
 
 #endif
