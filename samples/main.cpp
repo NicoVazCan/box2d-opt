@@ -34,7 +34,9 @@
 #include "box2d-lite/Body.h"
 #include "box2d-lite/Joint.h"
 
-#include <bvh.h>
+#ifdef BOX2D_USE_BROADPHASE_BVH
+	#include <bvh.h>
+#endif
 
 struct PrgArgs
 {
@@ -83,9 +85,9 @@ namespace
 	float pan_x = 0.0f;
 	bool dragging = false;
 	double lastMouseX = 0.0, lastMouseY = 0.0;
-
+#ifdef BOX2D_USE_BROADPHASE_BVH
 	bool drawBVHTree = false;
-
+#endif
 	World world(gravity, iterations);
 }
 
@@ -164,6 +166,7 @@ void DrawRect(float minx, float miny, float maxx, float maxy, float r, float g, 
 	glEnd();
 }
 
+	#ifdef BOX2D_USE_BROADPHASE_BVH
 void DrawNodeBVH(const bvh::bvh_t &tree, const bvh::node_t &node)
 {
   if (node.is_leaf()) {
@@ -175,6 +178,7 @@ void DrawNodeBVH(const bvh::bvh_t &tree, const bvh::node_t &node)
 		DrawNodeBVH(tree, tree.get(node.child[1]));
   }
 }
+	#endif
 #endif
 
 #define ASSERT_BOUNDS \
@@ -821,11 +825,11 @@ static void Keyboard(GLFWwindow* window, int key, int scancode, int action, int 
 		else
 			world.gravity = noGravity;
 		break;
-
+#ifdef BOX2D_USE_BROADPHASE_BVH
 	case GLFW_KEY_D:
 		drawBVHTree = !drawBVHTree;
 		break;
-
+#endif
 	case GLFW_KEY_SPACE:
 		LaunchBomb();
 		break;
@@ -1186,7 +1190,7 @@ static int runDemo()
 		DrawText(5, msgY += msgOffset, "Keys: 1-9 Demos, Space to Launch the Bomb");
 
 		char buffer[64];
-#ifdef DEMO_TUNE
+	#ifdef DEMO_TUNE
 		sprintf(buffer, "(A)ccumulation %s", World::accumulateImpulses ? "ON" : "OFF");
 		DrawText(5, msgY += msgOffset, buffer);
 
@@ -1195,13 +1199,13 @@ static int runDemo()
 
 		sprintf(buffer, "(W)arm Starting %s", World::warmStarting ? "ON" : "OFF");
 		DrawText(5, msgY += msgOffset, buffer);
-#endif
+	#endif
 		sprintf(buffer, "(G)ravity Enabled %s", world.gravity.y != 0.0f ? "ON" : "OFF");
 		DrawText(5, msgY += msgOffset, buffer);
-
+	#ifdef BOX2D_USE_BROADPHASE_BVH
 		sprintf(buffer, "(D)raw BVH Tree Enabled %s", drawBVHTree ? "ON" : "OFF");
 		DrawText(5, msgY += msgOffset, buffer);
-
+	#endif
 		sprintf(buffer, "FPS: %2d", avgFPS);
 		DrawText(5, msgY += msgOffset, buffer);
 		
@@ -1238,8 +1242,10 @@ static int runDemo()
 		for (int i = 0; i < numJoints; ++i)
 			DrawJoint(joints + i);
 
+	#ifdef BOX2D_USE_BROADPHASE_BVH
 		if (drawBVHTree)
 			DrawNodeBVH(world.bodiesBVH, world.bodiesBVH.root());
+	#endif
 
 		glPointSize(4.0f);
 		glColor3f(1.0f, 0.0f, 0.0f);

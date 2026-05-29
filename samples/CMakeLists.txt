@@ -16,7 +16,7 @@ if (NOT HEADLESS)
 endif()
 
 if (HEADLESS)
-	add_compile_definitions(HEADLESS)
+	target_compile_definitions(samples PRIVATE HEADLESS)
 endif()
 
 add_executable(samples ${SAMPLE_SOURCE_FILES} ${SAMPLE_HEADER_FILES})

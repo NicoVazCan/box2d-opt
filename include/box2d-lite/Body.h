@@ -15,12 +15,11 @@
 #include <map>
 #include "MathUtils.h"
 #include "Arbiter.h"
-#include <bvh.h>
 
-#ifdef STD_SHARED_MUTEX
-# include <shared_mutex>
-#elif !defined(OMP_ATOMIC)
-# include "SharedLock.h"
+#ifdef BOX2D_USE_BROADPHASE_BVH
+	#include <bvh.h>
+#else
+	#include <StdAfx.h>
 #endif
 
 
@@ -34,24 +33,34 @@ struct Body
 		force += f;
 	}
 
+#ifdef BOX2D_USE_BROADPHASE_BVH
 	bvh::aabb_t GetAABB()
+#else
+	inline void GetAABB(AABB &aabb) const
+#endif
 	{
-	    float c = cosf(rotation);
-	    float s = sinf(rotation);
+		float c = cosf(rotation);
+		float s = sinf(rotation);
 
-	    Vec2 half = width;
-	    half *= 0.5f;
+		Vec2 half = width;
+		half *= 0.5f;
 
-	    // Compute rotated extents
-	    float extentX = fabs(half.x * c) + fabs(half.y * s);
-	    float extentY = fabs(half.x * s) + fabs(half.y * c);
+		// Compute rotated extents
+		float extentX = fabs(half.x * c) + fabs(half.y * s);
+		float extentY = fabs(half.x * s) + fabs(half.y * c);
 
-	    Vec2 extents(extentX, extentY);
-	    Vec2 min = position - extents;
-	    Vec2 max = position + extents;
-	    bvh::aabb_t aabb{min.x, min.y, max.x, max.y};
-
-	    return aabb;
+		Vec2 extents(extentX, extentY);
+		Vec2 min = position - extents;
+		Vec2 max = position + extents;
+#ifdef BOX2D_USE_BROADPHASE_BVH
+		bvh::aabb_t aabb{min.x, min.y, max.x, max.y};
+		return aabb;
+#else
+		aabb.mMin.x = min.x;
+		aabb.mMin.y = min.y;
+		aabb.mMax.x = max.x;
+		aabb.mMax.y = max.y;
+#endif
 	}
 
 	Vec2 position;
@@ -70,8 +79,10 @@ struct Body
 	float I, invI;
 
 	std::map<Body*, Arbiter> arbiters;
+#ifdef BOX2D_USE_BROADPHASE_BVH
+	int idxBodies;
 	bvh::index_t idxBVH;
-	int idxWorld;
+#endif
 };
 
 #endif

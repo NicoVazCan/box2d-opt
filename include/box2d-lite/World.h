@@ -15,7 +15,12 @@
 #include <vector>
 #include <map>
 #include "MathUtils.h"
-#include <bvh.h>
+
+#ifdef BOX2D_USE_BROADPHASE_BVH
+	#include <bvh.h>
+#else
+	#include <StdAfx.h>
+#endif
 
 struct Body;
 struct Joint;
@@ -32,7 +37,11 @@ struct World
 
 	void BroadPhase();
 
+#ifdef BOX2D_USE_BROADPHASE_BVH
 	bvh::bvh_t bodiesBVH;
+#else
+	std::vector<AABB> aabbBodies{{}};
+#endif
 	std::vector<Body*> bodies;
 	std::vector<Joint*> joints;
 	Vec2 gravity;

@@ -157,7 +157,7 @@ void Joint::ApplyImpulse()
 	b2AngularVelocity = body2->angularVelocity;
 	b2InitAngularVelocity = b2AngularVelocity;
 
-    Vec2 dv = b2Velocity + Cross(b2AngularVelocity, r2) - b1Velocity - Cross(b1AngularVelocity, r1);
+	Vec2 dv = b2Velocity + Cross(b2AngularVelocity, r2) - b1Velocity - Cross(b1AngularVelocity, r1);
 
 	Vec2 impulse;
 

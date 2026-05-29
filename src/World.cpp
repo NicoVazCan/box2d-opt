@@ -14,7 +14,9 @@
 #include "box2d-lite/Joint.h"
 #include "box2d-lite/Arbiter.h"
 
-#include <omp.h>
+#ifdef BOX2D_USE_OMP
+	#include <omp.h>
+#endif
 #include <iostream>
 
 using std::vector;
@@ -32,9 +34,13 @@ bool World::positionCorrection = true;
 
 void World::Add(Body* body)
 {
-	body->idxWorld = bodies.size();
-	bodies.push_back(body);
+#ifdef BOX2D_USE_BROADPHASE_BVH
+	body->idxBodies = bodies.size();
 	body->idxBVH = bodiesBVH.insert(body->GetAABB(), body);
+#else
+	aabbBodies.emplace_back();
+#endif
+	bodies.push_back(body);
 }
 
 void World::Add(Joint* joint)
@@ -50,12 +56,17 @@ void World::Clear()
 		bi->arbiters.clear();
 	}
 	bodies.clear();
+#ifdef BOX2D_USE_BROADPHASE_BVH
 	bodiesBVH.clear();
+#else
+	aabbBodies.clear();
+#endif
 	joints.clear();
 }
 
 void World::BroadPhase()
 {
+#ifdef BOX2D_USE_BROADPHASE_BVH
 	std::vector<bvh::index_t> query;
 #pragma omp for private(query) schedule(static) 
 	for (int i = 0; i < (int)bodies.size(); ++i)
@@ -70,7 +81,7 @@ void World::BroadPhase()
 			bvh::node_t bjNode = bodiesBVH.get(bjIdx);
 			Body* bj = (Body*)bjNode.user_data;
 		    
-		    if (bj->idxWorld <= i) // Avoid checking pairs already checked
+		    if (bj->idxBodies <= i) // Avoid checking pairs already checked
 		    	continue;
 
 			if (bi->invMass == 0.0f && bj->invMass == 0.0f)
@@ -94,6 +105,56 @@ void World::BroadPhase()
 			}
 		}
 	}
+#else
+	static Container incs;
+	static Container refs;
+
+#pragma omp for schedule(static)
+	for (int i = 0; i < bodies.size(); ++i)
+	{
+		AABB& aabb = aabbBodies[i];
+		const Body* b = bodies[i];
+		b->GetAABB(aabb);
+	}
+
+#pragma omp single
+	{
+		incs.Reset();
+		refs.Reset();
+		CompleteBoxPruning(bodies.size(), aabbBodies.data(), incs, refs);
+	}
+
+	int incsSize = incs.GetNbEntries();
+#pragma omp for schedule(static)
+	for (int i = 0; i < incsSize; i += 3)
+	{
+		udword iBody = incs[i];
+		udword IdxStartRefs = incs[i + 1];
+		udword IdxEndRefs = incs[i + 2];
+		Body* bi = bodies[iBody];
+		for (int j = IdxStartRefs; j < IdxEndRefs; ++j) {
+			udword jBody = refs[j];
+		    Body* bj = bodies[jBody];
+
+			Arbiter newArb(bi, bj);
+
+			if (newArb.numContacts > 0)
+			{
+				ArbIter iter = bi->arbiters.find(bj);
+				if (iter == bi->arbiters.end())
+				{
+					newArb.updated = true;
+					bi->arbiters.insert(ArbPair(bj, newArb));
+				}
+				else
+				{
+					iter->second.updated = true;
+					iter->second.Update(newArb.contacts, newArb.numContacts);
+				}
+			}
+		}
+	}
+#endif
 }
 
 void World::Step(float dt)
@@ -177,9 +238,11 @@ void World::Step(float dt)
 		}
 	}
 
+#ifdef BOX2D_USE_BROADPHASE_BVH
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* b = bodies[i];
 		bodiesBVH.move(b->idxBVH, b->GetAABB());
 	}
+#endif
 }
