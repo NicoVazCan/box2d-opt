@@ -28,24 +28,6 @@ add_compile_options(
 
 message(STATUS "Used C++ compiler: " ${CMAKE_CXX_COMPILER_ID})
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-	add_compile_options(
-	    $<$<CONFIG:Profiling>:-ftree-vectorize>
-	)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-	target_compile_options(box2d-lite PRIVATE
-		$<$<CONFIG:Profiling>:-vec>
-	)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
-	target_compile_options(box2d-lite PRIVATE
-		$<$<CONFIG:Profiling>:-fvectorize -fslp-vectorize>
-	)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-	target_compile_options(box2d-lite PRIVATE
-		$<$<CONFIG:Profiling>:-fvectorize -fslp-vectorize>
-	)
-endif()
-
 add_subdirectory(src)
 
 if (BOX2D_BUILD_SAMPLES)

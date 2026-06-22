@@ -16,21 +16,34 @@ add_library(box2d-lite STATIC ${BOX2D_SOURCE_FILES} ${BOX2D_HEADER_FILES})
 
 list (GET BOX2D_SOURCE_FILES 2 VEC_INFO_FILE)
 
+
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+	target_compile_options(box2d-lite PRIVATE
+		$<$<CONFIG:Profiling>:-ftree-vectorize>
+	)
 	set_source_files_properties(${VEC_INFO_FILE} PROPERTIES
-	    COMPILE_OPTIONS $<$<CONFIG:Profiling>:-fopt-info-vec-all>
+		COMPILE_OPTIONS $<$<CONFIG:Profiling>:-fopt-info-vec-all>
 	)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+	target_compile_options(box2d-lite PRIVATE
+		$<$<CONFIG:Profiling>:-vec>
+	)
 	set_source_files_properties(${VEC_INFO_FILE} PROPERTIES
-	    COMPILE_OPTIONS $<$<CONFIG:Profiling>:-qopt-report-phase=vec>
+		COMPILE_OPTIONS $<$<CONFIG:Profiling>:-qopt-report-phase=vec>
 	)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+	target_compile_options(box2d-lite PRIVATE
+		$<$<CONFIG:Profiling>:-fvectorize -fslp-vectorize>
+	)
 	set_source_files_properties(${VEC_INFO_FILE} PROPERTIES
-	    COMPILE_OPTIONS $<$<CONFIG:Profiling>:-qopt-report-phase=vec>
+		COMPILE_OPTIONS $<$<CONFIG:Profiling>:-qopt-report-phase=vec>
 	)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(box2d-lite PRIVATE
+		$<$<CONFIG:Profiling>:-fvectorize -fslp-vectorize>
+	)
 	set_source_files_properties(${VEC_INFO_FILE} PROPERTIES
-	    COMPILE_OPTIONS $<$<CONFIG:Profiling>:-Rpass-analysis=loop-vectorize>
+		COMPILE_OPTIONS $<$<CONFIG:Profiling>:-Rpass-analysis=loop-vectorize>
 	)
 endif()
 
