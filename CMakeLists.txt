@@ -29,10 +29,15 @@ add_compile_options(
 message(STATUS "Used C++ compiler: " ${CMAKE_CXX_COMPILER_ID})
 
 if (BOX2D_USE_BROADPHASE_BVH)
+	add_compile_definitions(BOX2D_USE_ARBITER_MAP_PER_BODY)
 	add_compile_definitions(BOX2D_USE_BROADPHASE_BVH)
 	add_subdirectory(extern/bvh)
-else()
+elseif(BOX2D_USE_BROADPHASE_SAP)
+	add_compile_definitions(BOX2D_USE_ARBITER_MAP_PER_BODY)
+	add_compile_definitions(BOX2D_USE_BROADPHASE_SAP)
 	add_subdirectory(extern/ice)
+elseif(BOX2D_USE_ARBITER_MAP_PER_BODY)
+	add_compile_definitions(BOX2D_USE_ARBITER_MAP_PER_BODY)
 endif()
 
 add_subdirectory(src)

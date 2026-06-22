@@ -12,10 +12,12 @@
 #include "box2d-lite/World.h"
 #include "box2d-lite/Body.h"
 #include "box2d-lite/Joint.h"
-#include "box2d-lite/Arbiter.h"
+#ifdef BOX2D_USE_ARBITER_MAP_PER_BODY
+#	include "box2d-lite/Arbiter.h"
+#endif
 
 #ifdef BOX2D_USE_OMP
-	#include <omp.h>
+#	include <omp.h>
 #endif
 #include <iostream>
 
@@ -23,8 +25,13 @@ using std::vector;
 using std::map;
 using std::pair;
 
+#ifdef BOX2D_USE_ARBITER_MAP_PER_BODY
 typedef map<Body*, Arbiter>::iterator ArbIter;
 typedef pair<Body*, Arbiter> ArbPair;
+#else
+typedef map<ArbiterKey, Arbiter>::iterator ArbIter;
+typedef pair<ArbiterKey, Arbiter> ArbPair;
+#endif
 
 #ifdef DEMO_TUNE
 bool World::accumulateImpulses = true;
@@ -37,7 +44,7 @@ void World::Add(Body* body)
 #ifdef BOX2D_USE_BROADPHASE_BVH
 	body->idxBodies = bodies.size();
 	body->idxBVH = bodiesBVH.insert(body->GetAABB(), body);
-#else
+#elif defined(BOX2D_USE_BROADPHASE_SAP)
 	aabbBodies.emplace_back();
 #endif
 	bodies.push_back(body);
@@ -50,18 +57,23 @@ void World::Add(Joint* joint)
 
 void World::Clear()
 {
+#ifdef BOX2D_USE_ARBITER_MAP_PER_BODY
 	for (int i = 0; i < (int)bodies.size(); ++i)
 	{
 		Body* bi = bodies[i];
 		bi->arbiters.clear();
 	}
+#endif
 	bodies.clear();
 #ifdef BOX2D_USE_BROADPHASE_BVH
 	bodiesBVH.clear();
-#else
+#elif defined(BOX2D_USE_BROADPHASE_SAP)
 	aabbBodies.clear();
 #endif
 	joints.clear();
+#ifndef BOX2D_USE_ARBITER_MAP_PER_BODY
+	arbiters.clear();
+#endif
 }
 
 void World::BroadPhase()
@@ -105,7 +117,7 @@ void World::BroadPhase()
 			}
 		}
 	}
-#else
+#elif defined(BOX2D_USE_BROADPHASE_SAP)
 	static Container incs;
 	static Container refs;
 
@@ -154,6 +166,58 @@ void World::BroadPhase()
 			}
 		}
 	}
+#else
+	// O(n^2) broad-phase
+	for (int i = 0; i < (int)bodies.size(); ++i)
+	{
+		Body* bi = bodies[i];
+
+		for (int j = i + 1; j < (int)bodies.size(); ++j)
+		{
+			Body* bj = bodies[j];
+
+			if (bi->invMass == 0.0f && bj->invMass == 0.0f)
+				continue;
+
+			Arbiter newArb(bi, bj);
+
+#	ifdef BOX2D_USE_ARBITER_MAP_PER_BODY
+			if (newArb.numContacts > 0)
+			{
+				ArbIter iter = bi->arbiters.find(bj);
+				if (iter == bi->arbiters.end())
+				{
+					newArb.updated = true;
+					bi->arbiters.insert(ArbPair(bj, newArb));
+				}
+				else
+				{
+					iter->second.updated = true;
+					iter->second.Update(newArb.contacts, newArb.numContacts);
+				}
+			}
+#	else
+			ArbiterKey key(bi, bj);
+
+			if (newArb.numContacts > 0)
+			{
+				ArbIter iter = arbiters.find(key);
+				if (iter == arbiters.end())
+				{
+					arbiters.insert(ArbPair(key, newArb));
+				}
+				else
+				{
+					iter->second.Update(newArb.contacts, newArb.numContacts);
+				}
+			}
+			else
+			{
+				arbiters.erase(key);
+			}
+#	endif
+		}
+	}
 #endif
 }
 
@@ -181,6 +245,7 @@ void World::Step(float dt)
 
 		// Perform pre-steps.
 #pragma omp for schedule(static)
+#ifdef BOX2D_USE_ARBITER_MAP_PER_BODY
 		for (int i = 0; i < (int)bodies.size(); ++i)
 		{
 			Body* bi = bodies[i];
@@ -199,6 +264,12 @@ void World::Step(float dt)
 				}
 			}
 		}
+#else
+		for (ArbIter arb = arbiters.begin(); arb != arbiters.end(); ++arb)
+		{
+			arb->second.PreStep(inv_dt);
+		}
+#endif
 #pragma omp for schedule(static)
 		for (int i = 0; i < (int)joints.size(); ++i)
 		{
@@ -209,6 +280,7 @@ void World::Step(float dt)
 		for (int i = 0; i < iterations; ++i)
 		{
 #pragma omp for private(i) schedule(static)
+#ifdef BOX2D_USE_ARBITER_MAP_PER_BODY
 			for (int j = 0; j < (int)bodies.size(); ++j)
 			{
 				Body* bi = bodies[j];
@@ -217,6 +289,12 @@ void World::Step(float dt)
 					arb->second.ApplyImpulse();
 				}
 			}
+#else
+			for (ArbIter arb = arbiters.begin(); arb != arbiters.end(); ++arb)
+			{
+				arb->second.ApplyImpulse();
+			}
+#endif
 #pragma omp for private(i) schedule(static)
 			for (int j = 0; j < (int)joints.size(); ++j)
 			{

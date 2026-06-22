@@ -56,6 +56,6 @@ endif()
 
 if (BOX2D_USE_BROADPHASE_BVH)
 	target_link_libraries(box2d-lite PUBLIC bvh)
-else()
+elseif(BOX2D_USE_BROADPHASE_SAP)
 	target_link_libraries(box2d-lite PUBLIC ice)
 endif()

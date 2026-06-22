@@ -44,6 +44,26 @@ struct Contact
 	FeaturePair feature;
 };
 
+#ifndef BOX2D_USE_ARBITER_MAP_PER_BODY
+struct ArbiterKey
+{
+	ArbiterKey(Body* b1, Body* b2)
+	{
+		if (b1 < b2)
+		{
+			body1 = b1; body2 = b2;
+		}
+		else
+		{
+			body1 = b2; body2 = b1;
+		}
+	}
+
+	Body* body1;
+	Body* body2;
+};
+#endif
+
 struct Arbiter
 {
 	enum {MAX_POINTS = 2};
@@ -63,10 +83,25 @@ struct Arbiter
 
 	// Combined friction
 	float friction;
+#ifdef BOX2D_USE_ARBITER_MAP_PER_BODY
 	// Flag to detect whether touchpoints are maintained between frames
 	bool updated;
+#endif
 };
 
+#ifndef BOX2D_USE_ARBITER_MAP_PER_BODY
+// This is used by std::set
+inline bool operator < (const ArbiterKey& a1, const ArbiterKey& a2)
+{
+	if (a1.body1 < a2.body1)
+		return true;
+
+	if (a1.body1 == a2.body1 && a1.body2 < a2.body2)
+		return true;
+
+	return false;
+}
+#endif
 
 int Collide(Contact* contacts, Body* body1, Body* body2);
 

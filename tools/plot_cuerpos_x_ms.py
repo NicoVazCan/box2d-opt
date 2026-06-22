@@ -28,7 +28,7 @@ def parse_file(filepath):
 
 def parse_filename(filename):
     # scene10_b10000_t2_s600.txt
-    pattern = r'scene(\d+)_b(\d+)_t(\d+)_s(\d+)'
+    pattern = r'scene(\d+)_b(\d+)_t(\d+)'
 
     match = re.search(pattern, filename)
 
@@ -39,7 +39,6 @@ def parse_filename(filename):
         'scene': int(match.group(1)),
         'bodies': int(match.group(2)),
         'threads': int(match.group(3)),
-        'steps': int(match.group(4)),
     }
 
 
@@ -102,12 +101,13 @@ def main():
 
     args = parser.parse_args()
 
-    # Crear figura
+    # Crear figura con ejes X e Y compartidos
     fig, axes = plt.subplots(
         1,
         len(args.input_dirs),
         figsize=(6 * len(args.input_dirs), 5),
-        sharey=True
+        sharex=True,  # Unifica el rango del eje horizontal
+        sharey=True   # Unifica el rango del eje vertical
     )
 
     # Cuando solo hay un subplot
@@ -137,25 +137,25 @@ def main():
             print(f'[WARNING] No hay datos para escena {args.scene} en {directory}')
             continue
 
-        # Agrupar por número de cuerpos
-        for bodies in sorted(df['bodies'].unique()):
+        # Agrupar por número de hilos (threads)
+        for threads in sorted(df['threads'].unique()):
 
-            sub = df[df['bodies'] == bodies]
-            sub = sub.sort_values('threads')
+            sub = df[df['threads'] == threads]
+            sub = sub.sort_values('bodies')
 
             ax.plot(
-                sub['threads'],
                 sub['mean_time_ns'] / 1e6,
+                sub['bodies'],
                 marker='o',
-                label=f'{bodies} bodies'
+                label=f'{threads} threads'
             )
 
         ax.set_title(directory)
-        ax.set_xlabel('Threads')
+        ax.set_xlabel('Duración media del ciclo de simulación (ms)')
         ax.grid(True)
         ax.legend()
 
-    axes[0].set_ylabel('Mean step time (ms)')
+    axes[0].set_ylabel('Número de cuerpos simulados')
 
     fig.suptitle(f'Benchmark comparison - Scene {args.scene}')
 

@@ -15,11 +15,14 @@
 #include <vector>
 #include <map>
 #include "MathUtils.h"
+#ifndef BOX2D_USE_ARBITER_MAP_PER_BODY
+#	include "Arbiter.h"
+#endif
 
 #ifdef BOX2D_USE_BROADPHASE_BVH
-	#include <bvh.h>
-#else
-	#include <StdAfx.h>
+#	include <bvh.h>
+#elif defined(BOX2D_USE_BROADPHASE_SAP)
+#	include <StdAfx.h>
 #endif
 
 struct Body;
@@ -39,11 +42,14 @@ struct World
 
 #ifdef BOX2D_USE_BROADPHASE_BVH
 	bvh::bvh_t bodiesBVH;
-#else
+#elif defined(BOX2D_USE_BROADPHASE_SAP)
 	std::vector<AABB> aabbBodies{{}};
 #endif
 	std::vector<Body*> bodies;
 	std::vector<Joint*> joints;
+#ifndef BOX2D_USE_ARBITER_MAP_PER_BODY
+	std::map<ArbiterKey, Arbiter> arbiters;
+#endif	
 	Vec2 gravity;
 	int iterations;
 #ifdef DEMO_TUNE

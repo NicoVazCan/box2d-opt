@@ -9,7 +9,7 @@
 # sbatch benchmark.sh <programa> "<escenas>" "<cuerpos>" <steps> "<threads>" <timeout> <outdir>
 #
 # Ejemplo:
-# sbatch benchmark.sh build/sample/sample "10 11 12" "128 256 512 1024 2048 4096 8192 16384" 600 "1 2 4 8 16 32" 20 results
+# sbatch benchmark.sh build/samples/samples "10 11 12" "128 256 512 1024 2048 4096 8192 16384" 600 "1 2 4 8 16 32" 20 results
 # ============================
 
 PROGRAM=$1
@@ -56,6 +56,7 @@ for scene in "${SCENES[@]}"; do
 
       if [ $status -eq 124 ]; then
         echo "TIMEOUT detectado en b=$bodies con t=$threads!"
+        rm "$OUTFILE"
         break 
       fi
     done

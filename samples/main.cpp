@@ -1250,6 +1250,7 @@ static int runDemo()
 		glPointSize(4.0f);
 		glColor3f(1.0f, 0.0f, 0.0f);
 		glBegin(GL_POINTS);
+#ifdef BOX2D_USE_ARBITER_MAP_PER_BODY
 		std::map<Body*, Arbiter>::const_iterator iter;
 		for (int i = 0; i < (int)world.bodies.size(); ++i)
 		{
@@ -1264,6 +1265,18 @@ static int runDemo()
 				}
 			}
 		}
+#else
+		std::map<ArbiterKey, Arbiter>::const_iterator iter;
+		for (iter = world.arbiters.begin(); iter != world.arbiters.end(); ++iter)
+		{
+			const Arbiter& arbiter = iter->second;
+			for (int i = 0; i < arbiter.numContacts; ++i)
+			{
+				Vec2 p = arbiter.contacts[i].position;
+				glVertex2f(p.x, p.y);
+			}
+		}
+#endif
 		glEnd();
 		glPointSize(1.0f);
 

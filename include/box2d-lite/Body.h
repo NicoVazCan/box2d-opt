@@ -12,14 +12,16 @@
 #ifndef BODY_H
 #define BODY_H
 
-#include <map>
 #include "MathUtils.h"
-#include "Arbiter.h"
+#ifdef BOX2D_USE_ARBITER_MAP_PER_BODY
+#	include <map>
+#	include "Arbiter.h"
+#endif
 
 #ifdef BOX2D_USE_BROADPHASE_BVH
-	#include <bvh.h>
-#else
-	#include <StdAfx.h>
+#	include <bvh.h>
+#elif defined(BOX2D_USE_BROADPHASE_SAP)
+#	include <StdAfx.h>
 #endif
 
 
@@ -33,11 +35,12 @@ struct Body
 		force += f;
 	}
 
-#ifdef BOX2D_USE_BROADPHASE_BVH
+#if defined(BOX2D_USE_BROADPHASE_BVH) || defined(BOX2D_USE_BROADPHASE_SAP)
+#	ifdef BOX2D_USE_BROADPHASE_BVH
 	bvh::aabb_t GetAABB()
-#else
+#	elif defined(BOX2D_USE_BROADPHASE_SAP)
 	inline void GetAABB(AABB &aabb) const
-#endif
+#	endif
 	{
 		float c = cosf(rotation);
 		float s = sinf(rotation);
@@ -52,16 +55,17 @@ struct Body
 		Vec2 extents(extentX, extentY);
 		Vec2 min = position - extents;
 		Vec2 max = position + extents;
-#ifdef BOX2D_USE_BROADPHASE_BVH
+#	ifdef BOX2D_USE_BROADPHASE_BVH
 		bvh::aabb_t aabb{min.x, min.y, max.x, max.y};
 		return aabb;
-#else
+#	elif defined(BOX2D_USE_BROADPHASE_SAP)
 		aabb.mMin.x = min.x;
 		aabb.mMin.y = min.y;
 		aabb.mMax.x = max.x;
 		aabb.mMax.y = max.y;
-#endif
+#	endif
 	}
+#endif
 
 	Vec2 position;
 	float rotation;
@@ -78,7 +82,9 @@ struct Body
 	float mass, invMass;
 	float I, invI;
 
+#ifdef BOX2D_USE_ARBITER_MAP_PER_BODY
 	std::map<Body*, Arbiter> arbiters;
+#endif
 #ifdef BOX2D_USE_BROADPHASE_BVH
 	int idxBodies;
 	bvh::index_t idxBVH;
