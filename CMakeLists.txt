@@ -16,12 +16,14 @@ if (DEMO_TUNE)
 	add_compile_definitions(DEMO_TUNE)
 endif()
 
+if (PERF_CONFIG)
+	add_compile_options(-g -fno-omit-frame-pointer)
+endif()
+
 add_compile_options(
     $<$<CONFIG:Profiling>:-DNDEBUG>
     $<$<CONFIG:Profiling>:-march=native>
     $<$<CONFIG:Profiling>:-O2>
-    $<$<CONFIG:Profiling>:-g>
-    $<$<CONFIG:Profiling>:-fno-omit-frame-pointer>
 )
 
 message(STATUS "Used C++ compiler: " ${CMAKE_CXX_COMPILER_ID})
