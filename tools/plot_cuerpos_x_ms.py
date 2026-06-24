@@ -5,6 +5,19 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import locale
 
+text_scale = 1.25
+
+# ---- CONFIGURACIÓN GLOBAL DE FUENTES ----
+plt.rcParams.update({
+    'font.size': 12*text_scale,          # Tamaño base para todo el texto
+    'axes.titlesize': 16*text_scale,     # Tamaño del título
+    'axes.labelsize': 14*text_scale,     # Tamaño de las etiquetas de los ejes (X e Y)
+    'xtick.labelsize': 12*text_scale,    # Tamaño de los números en el eje X
+    'ytick.labelsize': 12*text_scale,    # Tamaño de los números en el eje Y
+    'legend.fontsize': 12*text_scale,    # Tamaño del texto de la leyenda
+    'legend.title_fontsize': 13*text_scale # Tamaño del título de la leyenda
+})
+
 # ==========================================
 # Parsear fichero de salida
 # ==========================================
@@ -101,18 +114,27 @@ def main():
 
     args = parser.parse_args()
 
-    # Crear figura con ejes X e Y compartidos
+    # ==========================================
+    # Configuración de la cuadrícula (Máximo 2 columnas)
+    # ==========================================
+    num_dirs = len(args.input_dirs)
+    ncols = 2 if num_dirs > 1 else 1
+    nrows = (num_dirs + ncols - 1) // ncols  # División entera superior
+
+    # Crear figura con filas y columnas dinámicas
     fig, axes = plt.subplots(
-        1,
-        len(args.input_dirs),
-        figsize=(6 * len(args.input_dirs), 5),
-        sharex=True,  # Unifica el rango del eje horizontal
-        sharey=True   # Unifica el rango del eje vertical
+        nrows,
+        ncols,
+        figsize=(6 * ncols, 5 * nrows), # Mantiene la proporción de 6x5 por gráfica
+        sharex=True,
+        sharey=True
     )
 
-    # Cuando solo hay un subplot
-    if len(args.input_dirs) == 1:
+    # Convertir 'axes' en una lista/array plano para iterar fácilmente
+    if num_dirs == 1:
         axes = [axes]
+    else:
+        axes = axes.flatten()
 
     # ==========================================
     # Dibujar cada benchmark
@@ -147,17 +169,20 @@ def main():
                 sub['mean_time_ns'] / 1e6,
                 sub['bodies'],
                 marker='o',
-                label=f'{threads} threads'
+                label=f'{threads} hilos'
             )
 
         ax.set_title(directory)
-        ax.set_xlabel('Duración media del ciclo de simulación (ms)')
         ax.grid(True)
         ax.legend()
 
-    axes[0].set_ylabel('Número de cuerpos simulados')
+    # Ocultar los subplots que sobren si el número de carpetas es impar
+    for i in range(num_dirs, len(axes)):
+        axes[i].axis('off')
 
-    fig.suptitle(f'Benchmark comparison - Scene {args.scene}')
+    fig.supxlabel('Duración media del ciclo de simulación (ms)', fontsize=14*text_scale)
+    fig.supylabel('Número de cuerpos', fontsize=14*text_scale)
+    fig.suptitle(f'Comparación Benchmarks - Escena {args.scene}')
 
     plt.tight_layout()
     plt.show()
