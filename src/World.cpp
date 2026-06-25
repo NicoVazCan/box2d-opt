@@ -221,9 +221,11 @@ void World::BroadPhase()
 #endif
 }
 
+#define BOX2D_MIN_BODIES_THREAD 10
+
 void World::Step(float dt)
 {
-#pragma omp parallel
+#pragma omp parallel if(bodies.size() > BOX2D_MIN_BODIES_THREAD)
 	{
 		float inv_dt = dt > 0.0f ? 1.0f / dt : 0.0f;
 
